@@ -340,6 +340,7 @@ if mode == "🎯 Challenge Mode":
                     )
 
 
+
 # ==================================================
 # FREE DRAWING MODE
 # ==================================================
@@ -348,61 +349,90 @@ else:
     st.header("🖼️ Analyze Your Own Drawing")
 
     st.write(
-        "No challenge required! Upload a handmade drawing "
-        "or take a photo of your artwork."
+        "Upload a handmade drawing or take a photo. "
+        "No challenge is required."
     )
 
     source = st.radio(
-        "How would you like to add your drawing?",
-        [
-            "📁 Upload an Image",
-            "📷 Take a Photo"
-        ],
-        horizontal=True
+        "Choose image source",
+        ["📁 Upload an Image", "📷 Take a Photo"],
+        horizontal=True,
+        key="free_drawing_source"
     )
 
     uploaded_image = None
 
     if source == "📁 Upload an Image":
+
         uploaded_file = st.file_uploader(
             "Choose your drawing",
             type=["png", "jpg", "jpeg"],
-            help="Upload a clear photo or scanned image of your artwork."
+            key="handmade_drawing_uploader",
+            help="Select an image and click Open."
         )
 
-        if uploaded_file is not None:
+        if uploaded_file is None:
+            st.info(
+                "Choose a PNG or JPG image from your device."
+            )
+        else:
             try:
-                uploaded_image = Image.open(
-                    uploaded_file
-                ).convert("RGB")
-            except Exception:
-                st.error("This image could not be opened.")
+                uploaded_file.seek(0)
+
+                image = Image.open(uploaded_file)
+                image.load()
+
+                uploaded_image = image.convert("RGB")
+
+                st.success(
+                    f"Image uploaded: {uploaded_file.name}"
+                )
+
+                st.image(
+                    uploaded_image,
+                    caption="Your uploaded drawing",
+                    use_container_width=True
+                )
+
+            except Exception as error:
+                st.error(
+                    f"Could not read the image: {error}"
+                )
 
     else:
         camera_file = st.camera_input(
-            "Take a picture of your drawing"
+            "Take a picture of your drawing",
+            key="handmade_drawing_camera"
         )
 
         if camera_file is not None:
             try:
-                uploaded_image = Image.open(
-                    camera_file
-                ).convert("RGB")
-            except Exception:
-                st.error("The captured photo could not be opened.")
+                camera_file.seek(0)
+
+                image = Image.open(camera_file)
+                image.load()
+
+                uploaded_image = image.convert("RGB")
+
+                st.image(
+                    uploaded_image,
+                    caption="Your captured drawing",
+                    use_container_width=True
+                )
+
+            except Exception as error:
+                st.error(
+                    f"Could not read the captured photo: {error}"
+                )
 
     if uploaded_image is not None:
-        st.subheader("🖼️ Image Preview")
 
-        st.image(
-            uploaded_image,
-            caption="Your drawing",
-            use_container_width=True
-        )
+        st.divider()
 
         if st.button(
             "✨ Analyze My Drawing",
-            type="primary"
+            type="primary",
+            key="analyze_free_drawing"
         ):
             run_ai_analysis(
                 uploaded_image,
