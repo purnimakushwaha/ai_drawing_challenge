@@ -1,203 +1,205 @@
-
 import os
 from ollama import Client
 
-# --------------------------------------------------
-# OLLAMA CLOUD CONFIGURATION
-# --------------------------------------------------
+# You can override the model by setting OLLAMA_MODEL in your environment.
+MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:cloud")
+API_KEY = os.environ.get("OLLAMA_API_KEY")
 
-MODEL = "gemma4:cloud"
-
-api_key = os.environ.get("OLLAMA_API_KEY")
-
-if not api_key:
+if not API_KEY:
     raise RuntimeError(
-        "OLLAMA_API_KEY is not set. Set your API key before running the app."
+        "OLLAMA_API_KEY is not set. Set your API key in PowerShell before running the app."
     )
 
 client = Client(
     host="https://ollama.com",
-    headers={"Authorization": f"Bearer {api_key}"}
+    headers={"Authorization": f"Bearer {API_KEY}"},
 )
 
 
-# --------------------------------------------------
-# 1. DETAILED DRAWING ANALYSIS
-# --------------------------------------------------
+def _chat(prompt, images=None):
+    """Send a prompt, optionally with one or more image paths, to Ollama Cloud."""
+    message = {"role": "user", "content": prompt}
+    if images:
+        message["images"] = images
 
-def analyze_drawing(image_path, challenge=None, analysis_type="general"):
+    response = client.chat(model=MODEL, messages=[message])
+    return response["message"]["content"]
 
-    if challenge:
-        purpose = f"""
-        This is a drawing challenge.
 
-        Challenge instructions:
-        {challenge}
+def generate_challenge(difficulty="Surprise me", previous_challenges=None):
+    """
+    Let AI choose any drawing subject/category and invent a fresh challenge.
+    Recent challenges are included to reduce repetition.
+    """
+    previous_challenges = previous_challenges or []
+    recent_text = "\n".join(
+        f"- {item[:350]}" for item in previous_challenges[-8:]
+    )
+    if not recent_text:
+        recent_text = "- None yet"
 
-        Judge how well the drawing follows the challenge.
-        Do not judge only artistic perfection.
-        """
-    elif analysis_type == "depict":
-        purpose = """
-        Explain exactly what this image depicts.
-        Identify visible objects, people, animals, setting,
-        activities, visual details, mood and possible meaning.
-        Clearly distinguish visible facts from guesses.
-        """
+    if difficulty == "Surprise me":
+        difficulty_instruction = (
+            "Choose a suitable difficulty yourself. It can be easy, medium, or hard."
+        )
     else:
-        purpose = """
-        Analyze this drawing in detail without assuming
-        that it belongs to a particular challenge.
-        """
+        difficulty_instruction = f"Use this difficulty: {difficulty}."
 
     prompt = f"""
-You are a friendly, thoughtful and constructive AI art expert.
+You are the creative challenge designer for an interactive AI Drawing Studio.
 
-{purpose}
+Invent ONE original drawing challenge. YOU choose the topic freely.
+Do not ask the user to choose a category. You may choose anything suitable,
+such as a funny invention, an unusual animal, a fantasy place, a futuristic
+object, a tiny scene, a mystery, a character, nature, food, a machine, or
+an unexpected combination of ideas.
 
-Study the image carefully. Do not invent objects or details
-that cannot reasonably be seen.
+Difficulty preference: {difficulty}
+{difficulty_instruction}
 
-Return your analysis using these sections:
+Recent challenges to avoid repeating:
+{recent_text}
 
-## 1. Artwork Description
-Describe what is visible in the drawing in clear language.
+Requirements:
+- Make the new challenge clearly different from the recent challenges.
+- Avoid generic prompts such as only "draw a cat" or "draw a house".
+- Make it imaginative, specific, and enjoyable.
+- Keep it possible to attempt with a mouse or touch screen.
+- Use simple English a beginner can understand.
+- Include one clear main subject and 3-5 visible details to include.
+- Include one optional creative twist.
+- Do not require writing words in the drawing.
+- Do not require perfect drawing skills.
+- For "Hard", add a scene or multiple connected details; for "Easy", keep
+  the idea simple; for "Medium", balance simplicity and creativity.
+- Keep instructions practical and not overly long.
+- Do not include a solution or sample finished drawing.
 
-## 2. Main Objects and Details
-Identify the main objects, shapes, characters, background
-and other visible details.
+Return the challenge in exactly this format:
 
-## 3. Creativity and Originality
-Explain what is interesting or creative about the drawing.
+TITLE: <short catchy title>
+DIFFICULTY: <Easy, Medium, or Hard>
+CHALLENGE: <clear instructions in simple English>
+MUST INCLUDE: <3-5 visual details separated by commas>
+BONUS TWIST: <one optional creative extra>
+SUGGESTED TIME: <reasonable number of minutes>
+"""
+    return _chat(prompt)
 
-## 4. Strengths
-List 3 specific things the artist did well, where possible.
 
-## 5. Improvement Opportunities
-List up to 3 realistic improvements. Be kind and specific.
+def analyze_drawing(image_path, challenge=None, analysis_type="general"):
+    if challenge:
+        purpose = f"""
+This is a drawing challenge.
+Challenge instructions:
+{challenge}
 
-## 6. Suggestions for the Next Version
-Give practical steps the artist can try next.
-
-## 7. Overall Feedback
-Give a short, encouraging summary.
-
+Evaluate how well the drawing follows this exact task. Be fair to beginners.
+Do not reward only polished artistic skill. Consider relevance, required
+details, creativity, and visible effort. Do not claim details are present
+unless they are actually visible.
+"""
+    elif analysis_type == "depict":
+        purpose = """
+Describe what the image depicts. Identify visible objects, characters,
+setting, actions, colours, composition, and mood. Clearly separate visible
+facts from interpretations or guesses.
+"""
+    else:
+        purpose = """
+Give a helpful, detailed analysis of this drawing without assuming it
+belongs to a challenge.
 """
 
+    prompt = f"""
+You are a kind, observant, and constructive drawing coach.
+{purpose}
+
+Use these sections:
+
+## 1. What I Can See
+Describe the drawing clearly in simple English.
+
+## 2. Details and Composition
+Mention the main objects, shapes, layout, colours, and background that are
+actually visible.
+
+## 3. What Works Well
+Give up to 3 specific strengths.
+
+## 4. What Could Be Improved
+Give up to 3 constructive, achievable suggestions.
+
+## 5. Try This Next
+Give a short, practical step-by-step plan.
+
+## 6. Creative Idea
+Suggest one interesting detail the artist could add.
+
+## 7. Overall Feedback
+End with an encouraging summary.
+"""
     if challenge:
         prompt += """
 ## 8. Challenge Evaluation
-Score each criterion from 0 to 10:
-- Relevance to the challenge
-- Required elements
-- Creativity
-- Overall completion
+Evaluate the drawing against the challenge:
+- Challenge relevance: score out of 10
+- Required details: score out of 10
+- Creativity: score out of 10
+- Completion: score out of 10
 
-Explain the scores briefly.
-
-End with:
+Briefly explain each score. Calculate a fair overall score out of 10.
+Do not automatically give high marks; explain the reasons kindly.
+Finish with exactly these three lines:
 Score: X/10
 Completed: Yes or No
 Feedback: one concise sentence
 """
+    return _chat(prompt, images=[image_path])
 
-    response = client.chat(
-        model=MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-                "images": [image_path]
-            }
-        ]
-    )
-
-    return response["message"]["content"]
-
-
-# --------------------------------------------------
-# 2. ASK AI ABOUT THE SAME DRAWING
-# --------------------------------------------------
 
 def ask_about_drawing(
     image_path,
     question,
     previous_analysis="",
-    conversation_history=""
+    conversation_history="",
 ):
     prompt = f"""
-You are helping a user understand and improve their drawing.
+You are a friendly AI art coach. Answer the user's question specifically
+about the attached drawing. Do not invent details that are not visible.
 
-The user has already received this drawing analysis:
+Earlier drawing analysis:
 {previous_analysis}
 
 Previous follow-up conversation:
 {conversation_history}
 
-The user now asks:
+User's new question:
 {question}
 
-Answer specifically about the attached image.
-Be friendly, clear, useful and detailed when necessary.
-
-If the user asks how to improve something, give actionable
-steps. If something is not clearly visible, say so instead
-of pretending to know.
+Be clear, practical, encouraging, and specific. If asked how to improve
+something, give actionable steps. If unsure about a visual detail, say so.
 """
+    return _chat(prompt, images=[image_path])
 
-    response = client.chat(
-        model=MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-                "images": [image_path]
-            }
-        ]
-    )
-
-    return response["message"]["content"]
-
-
-# --------------------------------------------------
-# 3. COMPARE MULTIPLE DRAWINGS
-# --------------------------------------------------
 
 def compare_drawings(image_paths):
-
     if len(image_paths) < 2:
-        raise ValueError("Upload at least two drawings to compare.")
+        raise ValueError("Please provide at least two drawings.")
 
     prompt = """
-You are an objective and constructive drawing comparison expert.
-
-The user has provided multiple drawings. Refer to them as
-Drawing 1, Drawing 2, Drawing 3, and so on, in upload order.
-
-Analyze each drawing separately, then compare them.
+Compare the attached drawings in upload order, calling them Drawing 1,
+Drawing 2, and so on.
 
 Include:
-1. What each drawing depicts.
-2. Strengths of each drawing.
-3. Differences in details, composition and creativity.
-4. Which drawing best communicates its idea and why.
-5. One improvement suggestion for each drawing.
-6. A fair overall comparison.
+## What Each Drawing Depicts
+## Strengths of Each Drawing
+## Main Differences
+## Composition, Details and Creativity
+## Which Best Communicates Its Idea (and why)
+## One Improvement for Each Drawing
 
-Do not assume that the most detailed drawing is always the best.
-Explain uncertainty where image details are unclear.
-Be constructive, not insulting.
+Be fair and constructive. The most detailed drawing is not automatically
+the best. Do not invent image details. Explain when a visual detail is unclear.
 """
-
-    response = client.chat(
-        model=MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-                "images": image_paths
-            }
-        ]
-    )
-
-    return response["message"]["content"]
+    return _chat(prompt, images=image_paths)
