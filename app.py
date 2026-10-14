@@ -1,659 +1,435 @@
-
 import os
-import random
-import re
 import tempfile
-import time
+from io import BytesIO
 
 import streamlit as st
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
 
-from ollama_client import analyze_drawing, compare_drawings
+from ollama_client import (
+    generate_challenge,
+    analyze_drawing,
+    ask_about_drawing,
+    compare_drawings,
+)
 
-
-# ==================================================
+# ---------------------------------------------------------
 # PAGE CONFIGURATION
-# ==================================================
-
+# ---------------------------------------------------------
 st.set_page_config(
     page_title="AI Drawing Studio",
     page_icon="🎨",
-    layout="wide"
+    layout="wide",
 )
 
+# Existing simple layout retained
+st.title("🎨 AI Drawing Studio")
+st.caption("Draw, explore ideas, and get thoughtful feedback from AI.")
 
-# ==================================================
-# CHALLENGES
-# ==================================================
-
-CHALLENGES = {
-    "🎨 Creative": [
-        "Draw a dream house using at least 3 different shapes.",
-        "Draw a magical tree with unusual fruits.",
-        "Draw a flying vehicle from your imagination.",
-        "Draw a robot with one unusual feature."
-    ],
-    "🔷 Geometry": [
-        "Draw a house using circles and squares.",
-        "Draw a robot using rectangles and circles.",
-        "Draw a car using at least 3 geometric shapes.",
-        "Draw a rocket using circles, rectangles and triangles."
-    ],
-    "😂 Funny": [
-        "Draw a cat wearing a huge hat.",
-        "Draw a confused-looking robot.",
-        "Draw an animal trying to fly.",
-        "Draw a funny face using simple shapes."
-    ],
-    "🎯 Challenge": [
-        "Draw a tree with exactly 3 branches and 5 leaves.",
-        "Draw a robot with exactly 2 circles and 3 rectangles.",
-        "Draw a house with a door, two windows and a chimney.",
-        "Draw a rocket with two windows and three flames."
-    ]
-}
-
-
-# ==================================================
+# ---------------------------------------------------------
 # SESSION STATE
-# ==================================================
-
+# ---------------------------------------------------------
 defaults = {
-    "challenge": None,
-    "result": None,
-    "history": [],
-    "start_time": None,
-    "time_limit": 2,
-    "canvas_version": 0,
-    "last_analysis_mode": None,
-    "last_analyzed_image": None
+    "challenge_text": "",
+    "challenge_title": "",
+    "analysis_result": "",
+    "last_drawing_bytes": None,
+    "last_drawing_analysis": "",
+    "drawing_questions": [],
+    "last_challenge": "",
+    "challenge_difficulty": "Surprise me",
+    "recent_challenges": [],
+    "comparison_result": "",
 }
-
 for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
 
-# ==================================================
-# HELPER: SAVE IMAGE AND ANALYZE
-# ==================================================
+def image_to_png_bytes(image):
+    """Convert a PIL image to PNG bytes."""
+    output = BytesIO()
+    image.convert("RGBA").save(output, format="PNG")
+    return output.getvalue()
 
-def run_ai_analysis(
-    image,
-    challenge=None,
-    analysis_type="general"
-):
-    """Save an image temporarily and send it to Ollama."""
 
-    image_path = None
-
+def save_temp_image(image_bytes):
+    """Write image bytes to a temporary PNG file for Ollama."""
+    temp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     try:
-        with tempfile.NamedTemporaryFile(
-            suffix=".png",
-            delete=False
-        ) as temp_file:
-            image_path = temp_file.name
+        temp.write(image_bytes)
+        temp.close()
+        return temp.name
+    except Exception:
+        temp.close()
+        raise
 
-        image.convert("RGB").save(
-            image_path,
-            format="PNG"
-        )
 
-        with st.spinner("🤖 AI is analyzing your drawing..."):
+def run_analysis(image_bytes, challenge=None, analysis_type="general"):
+    """Analyze an image and retain it for follow-up questions."""
+    image_path = None
+    try:
+        image_path = save_temp_image(image_bytes)
+
+        with st.spinner("AI is carefully studying your drawing..."):
             result = analyze_drawing(
                 image_path,
-                challenge,
-                analysis_type=analysis_type
+                challenge=challenge,
+                analysis_type=analysis_type,
             )
 
-        st.session_state.result = result
-        st.session_state.last_analysis_mode = (
-            "challenge" if challenge else "free"
-        )
-
-        # Record scores only in Challenge Mode.
-        if challenge:
-            match = re.search(
-                r"Score\s*:\s*(\d+)\s*/\s*10",
-                result,
-                re.IGNORECASE
-            )
-
-            if match:
-                score = min(10, int(match.group(1)))
-                st.session_state.history.append(score)
-
-        return True
-
-    except Exception as error:
-        st.error(
-            f"AI analysis failed: {error}"
-        )
-        return False
-
+        st.session_state["analysis_result"] = result
+        st.session_state["last_drawing_bytes"] = image_bytes
+        st.session_state["last_drawing_analysis"] = result
+        st.session_state["last_challenge"] = challenge or ""
+        st.session_state["drawing_questions"] = []
+        return result
     finally:
         if image_path and os.path.exists(image_path):
             os.remove(image_path)
 
 
-# ==================================================
-# HEADER
-# ==================================================
+def clear_current_analysis():
+    """Clear the last drawing's analysis when a new challenge starts."""
+    st.session_state["analysis_result"] = ""
+    st.session_state["last_drawing_bytes"] = None
+    st.session_state["last_drawing_analysis"] = ""
+    st.session_state["last_challenge"] = ""
+    st.session_state["drawing_questions"] = []
 
-st.title("🎨 AI Drawing Studio")
 
-st.write(
-    "Create your own artwork, complete drawing challenges, "
-    "or upload a handmade drawing for AI feedback."
+# ---------------------------------------------------------
+# MAIN NAVIGATION
+# ---------------------------------------------------------
+mode = st.radio(
+    "Choose what you want to do",
+    [
+        "AI Drawing Challenge",
+        "Free Drawing & Analysis",
+        "Compare Drawings",
+    ],
+    horizontal=True,
 )
 
-st.caption(
-    "Create. Capture. Discover."
-)
-
-st.divider()
-
-
-# ==================================================
-# SIDEBAR
-# ==================================================
-
-with st.sidebar:
-    st.header("⚙️ Settings")
-
-    mode = st.radio(
-        "Choose your experience",
-        [
-            "🎯 Challenge Mode",
-            "🖼️ Free Drawing Mode"
-        ]
-    )
-
-    st.divider()
-
-    st.header("🏆 Challenge Score History")
-
-    if st.session_state.history:
-        for number, score in enumerate(
-            st.session_state.history,
-            start=1
-        ):
-            st.write(f"Round {number}: **{score}/10**")
-
-        st.metric(
-            "Best Score",
-            f"{max(st.session_state.history)}/10"
-        )
-
-        if st.button("🗑️ Clear Score History"):
-            st.session_state.history = []
-            st.rerun()
-    else:
-        st.caption("No completed challenge rounds yet.")
-
-    st.divider()
-
-    st.caption(
-        "AI results are generated automatically and "
-        "may occasionally be inaccurate."
-    )
-
-
-# ==================================================
-# CHALLENGE MODE
-# ==================================================
-
-if mode == "🎯 Challenge Mode":
-
-    st.header("🎯 Drawing Challenge")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        category = st.selectbox(
-            "Challenge category",
-            list(CHALLENGES.keys())
-        )
-
-    with col2:
-        time_limit = st.selectbox(
-            "Time limit",
-            [1, 2, 3, 5],
-            index=1,
-            format_func=lambda x: (
-                f"{x} minute" if x == 1
-                else f"{x} minutes"
-            )
-        )
-
-    if st.button(
-        "🎲 New Challenge",
-        type="primary"
-    ):
-        st.session_state.challenge = random.choice(
-            CHALLENGES[category]
-        )
-        st.session_state.result = None
-        st.session_state.start_time = time.time()
-        st.session_state.time_limit = time_limit
-        st.session_state.canvas_version += 1
-        st.rerun()
-
-    if st.session_state.challenge is None:
-        st.info(
-            "Choose a category and click "
-            "**New Challenge** to get started."
-        )
-
-    else:
-        st.subheader("Your Mission")
-        st.info(st.session_state.challenge)
-
-        elapsed = int(
-            time.time() - st.session_state.start_time
-        )
-
-        total_seconds = (
-            st.session_state.time_limit * 60
-        )
-
-        remaining = max(
-            0,
-            total_seconds - elapsed
-        )
-
-        st.metric(
-            "⏱️ Time Remaining",
-            f"{remaining // 60:02d}:{remaining % 60:02d}"
-        )
-
-        if remaining == 0:
-            st.warning(
-                "Time is up! You can still submit your drawing."
-            )
-
-        st.subheader("✏️ Draw Your Answer")
-
-        tool = st.selectbox(
-            "Drawing tool",
-            [
-                "✏️ Pencil",
-                "📏 Line",
-                "🟦 Rectangle",
-                "⭕ Circle",
-                "🔺 Polygon",
-                "🧹 Eraser"
-            ]
-        )
-
-        drawing_modes = {
-            "✏️ Pencil": "freedraw",
-            "📏 Line": "line",
-            "🟦 Rectangle": "rect",
-            "⭕ Circle": "circle",
-            "🔺 Polygon": "polygon",
-            "🧹 Eraser": "freedraw"
-        }
-
-        is_eraser = tool == "🧹 Eraser"
-
-        stroke_color = (
-            "#FFFFFF"
-            if is_eraser
-            else st.color_picker("🎨 Drawing color", "#000000")
-        )
-
-        stroke_width = st.slider(
-            "Eraser size" if is_eraser else "Brush size",
-            5 if is_eraser else 1,
-            50 if is_eraser else 20,
-            20 if is_eraser else 4
-        )
-
-        canvas = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=stroke_width,
-            stroke_color=stroke_color,
-            background_color="#FFFFFF",
-            height=450,
-            width=700,
-            drawing_mode=drawing_modes[tool],
-            key=f"drawing_canvas_{st.session_state.canvas_version}"
-        )
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("🗑️ Clear Canvas"):
-                st.session_state.canvas_version += 1
-                st.session_state.result = None
-                st.rerun()
-
-        with col2:
-            if st.button("🤖 Submit Drawing", type="primary"):
-                if canvas.image_data is None:
-                    st.warning("Please draw something first.")
-                else:
-                    image = Image.fromarray(
-                        canvas.image_data.astype("uint8")
-                    )
-
-                    run_ai_analysis(
-                        image,
-                        st.session_state.challenge
-                    )
-
-
-
-
-# ==================================================
-# FREE DRAWING, IMAGE DESCRIPTION & COMPARISON
-# ==================================================
-
-else:
-    st.header("🖼️ AI Drawing Studio")
-
+# ---------------------------------------------------------
+# MODE 1: AI-GENERATED DRAWING CHALLENGE
+# AI chooses the subject/category itself
+# ---------------------------------------------------------
+if mode == "AI Drawing Challenge":
+    st.subheader("🎯 Your next drawing challenge")
     st.write(
-        "Analyze your artwork, discover what an image depicts, "
-        "or compare multiple drawings with AI."
+        "Let AI surprise you with a fresh drawing idea from any topic — "
+        "animals, fantasy, everyday life, inventions, mystery, or something unexpected."
     )
 
-    feature = st.radio(
-        "Choose a feature",
-        [
-            "🎨 Analyze My Drawing",
-            "🔍 What Does This Image Depict?",
-            "📊 Compare Drawings"
-        ],
-        horizontal=False,
-        key="drawing_analysis_feature"
+    difficulty = st.selectbox(
+        "Challenge difficulty",
+        ["Surprise me", "Easy", "Medium", "Hard"],
+        index=0,
+        key="challenge_difficulty_select",
     )
 
-    # --------------------------------------------------
-    # COMPARE TWO OR MORE DRAWINGS
-    # --------------------------------------------------
+    if st.button("✨ Generate a New AI Challenge", type="primary"):
+        try:
+            with st.spinner("AI is inventing a new challenge..."):
+                generated = generate_challenge(
+                    difficulty=difficulty,
+                    previous_challenges=st.session_state["recent_challenges"],
+                )
 
-    if feature == "📊 Compare Drawings":
+            st.session_state["challenge_text"] = generated
+            st.session_state["challenge_title"] = generated
+            st.session_state["recent_challenges"].append(generated)
+            # Keep recent history short so prompts do not grow indefinitely.
+            st.session_state["recent_challenges"] = (
+                st.session_state["recent_challenges"][-8:]
+            )
+            clear_current_analysis()
+        except Exception as error:
+            st.error(f"Could not generate a challenge: {error}")
 
-        st.subheader("📊 Compare Your Artwork")
-
-        st.write(
-            "Upload at least two images. AI will compare "
-            "their subjects, similarities, differences, "
-            "details, styles and strengths."
+    if st.session_state["challenge_text"]:
+        st.info(st.session_state["challenge_text"])
+        st.caption(
+            "Every new challenge is created by AI. Generate another one "
+            "whenever you want a different idea."
         )
 
-        drawing_files = st.file_uploader(
-            "Upload two or more drawings",
-            type=["png", "jpg", "jpeg"],
-            accept_multiple_files=True,
-            key="comparison_uploader"
-        )
+        st.markdown("### ✏️ Draw your interpretation")
+        canvas_col, tools_col = st.columns([3, 1])
 
-        if drawing_files:
-            st.caption(
-                f"{len(drawing_files)} image(s) selected."
+        with tools_col:
+            stroke_color = st.color_picker(
+                "Brush colour", "#222222", key="challenge_color"
+            )
+            stroke_width = st.slider(
+                "Brush size", 1, 30, 4, key="challenge_width"
+            )
+            bg_color = st.color_picker(
+                "Canvas colour", "#FFFFFF", key="challenge_bg"
+            )
+            canvas_height = st.slider(
+                "Canvas height", 300, 650, 450, 50, key="challenge_height"
             )
 
-            if len(drawing_files) > 10:
-                st.warning(
-                    "Please select no more than 10 drawings."
-                )
+        with canvas_col:
+            challenge_canvas = st_canvas(
+                fill_color="rgba(255, 255, 255, 0.0)",
+                stroke_width=stroke_width,
+                stroke_color=stroke_color,
+                background_color=bg_color,
+                height=canvas_height,
+                width=750,
+                drawing_mode="freedraw",
+                key="challenge_canvas",
+                display_toolbar=True,
+            )
 
+        if st.button("🔍 Analyze My Challenge Drawing", type="primary"):
+            if challenge_canvas.image_data is None:
+                st.warning("Please draw something first.")
             else:
-                preview_columns = st.columns(
-                    min(len(drawing_files), 3)
+                drawing = Image.fromarray(
+                    challenge_canvas.image_data.astype("uint8")
                 )
-
-                for index, file in enumerate(drawing_files):
-                    try:
-                        image = Image.open(file).convert("RGB")
-
-                        with preview_columns[
-                            index % len(preview_columns)
-                        ]:
-                            st.image(
-                                image,
-                                caption=f"Drawing {index + 1}",
-                                use_container_width=True
-                            )
-
-                    except Exception:
-                        st.error(
-                            f"Could not open {file.name}."
-                        )
-
-        if st.button(
-            "🔬 Compare Drawings",
-            type="primary",
-            key="compare_drawings_button"
-        ):
-            if len(drawing_files) < 2:
-                st.warning(
-                    "Please upload at least two drawings."
-                )
-
-            elif len(drawing_files) > 10:
-                st.warning(
-                    "Please upload no more than 10 drawings."
-                )
-
-            else:
-                temp_paths = []
+                image_bytes = image_to_png_bytes(drawing)
 
                 try:
-                    for file in drawing_files:
-                        file.seek(0)
+                    result = run_analysis(
+                        image_bytes,
+                        challenge=st.session_state["challenge_text"],
+                    )
+                    st.success("Your drawing has been analyzed!")
+                    st.markdown(result)
+                except Exception as error:
+                    st.error(f"Analysis failed: {error}")
 
-                        image = Image.open(file).convert("RGB")
+        if (
+            st.session_state["analysis_result"]
+            and st.session_state["last_challenge"]
+        ):
+            st.markdown("### Latest challenge feedback")
+            st.markdown(st.session_state["analysis_result"])
 
-                        with tempfile.NamedTemporaryFile(
-                            suffix=".png",
-                            delete=False
-                        ) as temp_file:
-                            image.save(
-                                temp_file.name,
-                                format="PNG"
-                            )
-                            temp_paths.append(temp_file.name)
+# ---------------------------------------------------------
+# MODE 2: FREE DRAWING, UPLOAD AND ANALYSIS
+# ---------------------------------------------------------
+elif mode == "Free Drawing & Analysis":
+    st.subheader("🖌️ Draw or upload an image")
+    input_mode = st.radio(
+        "Choose your input",
+        ["Draw here", "Upload an image"],
+        horizontal=True,
+        key="free_input_mode",
+    )
 
-                    with st.spinner(
-                        "🤖 AI is comparing your drawings..."
-                    ):
+    image_bytes = None
+
+    if input_mode == "Draw here":
+        col1, col2 = st.columns([3, 1])
+
+        with col2:
+            stroke_color = st.color_picker(
+                "Brush colour", "#222222", key="free_color"
+            )
+            stroke_width = st.slider(
+                "Brush size", 1, 30, 4, key="free_width"
+            )
+            bg_color = st.color_picker(
+                "Canvas colour", "#FFFFFF", key="free_bg"
+            )
+            canvas_height = st.slider(
+                "Canvas height", 300, 650, 450, 50, key="free_height"
+            )
+
+        with col1:
+            free_canvas = st_canvas(
+                fill_color="rgba(255, 255, 255, 0.0)",
+                stroke_width=stroke_width,
+                stroke_color=stroke_color,
+                background_color=bg_color,
+                height=canvas_height,
+                width=750,
+                drawing_mode="freedraw",
+                key="free_canvas",
+                display_toolbar=True,
+            )
+
+        if free_canvas.image_data is not None:
+            drawing = Image.fromarray(
+                free_canvas.image_data.astype("uint8")
+            )
+            image_bytes = image_to_png_bytes(drawing)
+            st.download_button(
+                "⬇️ Download My Drawing",
+                data=image_bytes,
+                file_name="my_drawing.png",
+                mime="image/png",
+            )
+
+    else:
+        uploaded = st.file_uploader(
+            "Upload a drawing or picture",
+            type=["png", "jpg", "jpeg", "webp"],
+            key="free_image_upload",
+        )
+        if uploaded is not None:
+            try:
+                image = Image.open(uploaded).convert("RGBA")
+                st.image(
+                    image,
+                    caption="Image ready for analysis",
+                    use_container_width=True,
+                )
+                image_bytes = image_to_png_bytes(image)
+            except Exception as error:
+                st.error(f"Could not open this image: {error}")
+
+    if image_bytes:
+        analysis_type = st.selectbox(
+            "What should AI do?",
+            [
+                "Detailed drawing analysis",
+                "Describe what this image depicts",
+            ],
+            key="free_analysis_type",
+        )
+
+        if st.button("✨ Analyze Image", type="primary"):
+            try:
+                result = run_analysis(
+                    image_bytes,
+                    analysis_type=(
+                        "depict"
+                        if analysis_type == "Describe what this image depicts"
+                        else "general"
+                    ),
+                )
+                st.success("Analysis complete!")
+                st.markdown(result)
+            except Exception as error:
+                st.error(f"Analysis failed: {error}")
+
+    if (
+        st.session_state["analysis_result"]
+        and not st.session_state["last_challenge"]
+    ):
+        st.markdown("### Latest AI analysis")
+        st.markdown(st.session_state["analysis_result"])
+
+# ---------------------------------------------------------
+# MODE 3: COMPARE DRAWINGS
+# ---------------------------------------------------------
+else:
+    st.subheader("🖼️ Compare two or more drawings")
+    uploaded_files = st.file_uploader(
+        "Select at least 2 images (up to 10)",
+        type=["png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=True,
+        key="comparison_uploads",
+    )
+
+    if uploaded_files:
+        if len(uploaded_files) > 10:
+            st.warning("Please choose no more than 10 images.")
+        else:
+            columns = st.columns(min(len(uploaded_files), 3))
+            for index, uploaded in enumerate(uploaded_files):
+                with columns[index % len(columns)]:
+                    st.image(
+                        uploaded,
+                        caption=f"Drawing {index + 1}: {uploaded.name}",
+                        use_container_width=True,
+                    )
+
+            if len(uploaded_files) >= 2 and st.button(
+                "🔎 Compare Drawings", type="primary"
+            ):
+                temp_paths = []
+                try:
+                    for uploaded in uploaded_files:
+                        uploaded.seek(0)
+                        image = Image.open(uploaded).convert("RGB")
+                        temp = tempfile.NamedTemporaryFile(
+                            suffix=".png", delete=False
+                        )
+                        temp.close()
+                        image.save(temp.name, format="PNG")
+                        temp_paths.append(temp.name)
+
+                    with st.spinner("AI is comparing the drawings..."):
                         result = compare_drawings(temp_paths)
 
-                    st.session_state.result = result
-                    st.session_state.last_analysis_mode = (
-                        "comparison"
-                    )
-
+                    st.session_state["comparison_result"] = result
+                    st.markdown(result)
                 except Exception as error:
-                    st.error(
-                        f"Drawing comparison failed: {error}"
-                    )
-
+                    st.error(f"Comparison failed: {error}")
                 finally:
                     for path in temp_paths:
                         if os.path.exists(path):
                             os.remove(path)
 
-    # --------------------------------------------------
-    # ANALYZE ONE IMAGE
-    # --------------------------------------------------
+    if st.session_state.get("comparison_result"):
+        st.markdown("### Latest comparison")
+        st.markdown(st.session_state["comparison_result"])
 
-    else:
-        if feature == "🔍 What Does This Image Depict?":
-            st.subheader("🔍 Understand Any Image")
-
-            st.write(
-                "Upload or photograph a drawing to discover "
-                "its main subject, visible objects, scene, "
-                "and possible meaning."
-            )
-        else:
-            st.subheader("🎨 Analyze Your Drawing")
-
-            st.write(
-                "Get a description, strengths, style observations, "
-                "and suggestions for improving your artwork."
-            )
-
-        source = st.radio(
-            "Choose image source",
-            [
-                "📁 Upload an Image",
-                "📷 Take a Photo"
-            ],
-            horizontal=True,
-            key="single_image_source"
+# ---------------------------------------------------------
+# FOLLOW-UP QUESTIONS ABOUT LAST ANALYZED DRAWING
+# ---------------------------------------------------------
+if st.session_state.get("last_drawing_bytes"):
+    st.divider()
+    with st.expander("💬 Ask AI About My Drawing"):
+        st.write(
+            "Ask a follow-up question about your latest analyzed drawing."
+        )
+        question = st.text_input(
+            "Your question",
+            placeholder="e.g. What can I add to make this drawing better?",
+            key="drawing_followup_question",
         )
 
-        uploaded_image = None
-
-        if source == "📁 Upload an Image":
-            uploaded_file = st.file_uploader(
-                "Choose your image",
-                type=["png", "jpg", "jpeg"],
-                key="single_drawing_uploader"
-            )
-
-            if uploaded_file is not None:
+        if st.button("Ask AI", key="ask_drawing_ai"):
+            if not question.strip():
+                st.warning("Please enter a question first.")
+            else:
+                temp_path = None
                 try:
-                    uploaded_file.seek(0)
-                    image = Image.open(uploaded_file)
-                    image.load()
-                    uploaded_image = image.convert("RGB")
+                    temp_path = save_temp_image(
+                        st.session_state["last_drawing_bytes"]
+                    )
+                    history = st.session_state.get("drawing_questions", [])
+                    conversation_history = "\n".join(
+                        f"User: {item['question']}\nAI: {item['answer']}"
+                        for item in history
+                    )
 
+                    with st.spinner("AI is answering..."):
+                        answer = ask_about_drawing(
+                            image_path=temp_path,
+                            question=question.strip(),
+                            previous_analysis=st.session_state.get(
+                                "last_drawing_analysis", ""
+                            ),
+                            conversation_history=conversation_history,
+                        )
+
+                    st.session_state["drawing_questions"].append(
+                        {
+                            "question": question.strip(),
+                            "answer": answer,
+                        }
+                    )
+                    st.rerun()
                 except Exception as error:
-                    st.error(
-                        f"Could not read the image: {error}"
-                    )
+                    st.error(f"Could not get an answer: {error}")
+                finally:
+                    if temp_path and os.path.exists(temp_path):
+                        os.remove(temp_path)
 
-        else:
-            camera_file = st.camera_input(
-                "Take a photo",
-                key="single_drawing_camera"
-            )
+        for item in st.session_state.get("drawing_questions", []):
+            st.markdown(f"**You asked:** {item['question']}")
+            st.markdown(f"**AI:** {item['answer']}")
 
-            if camera_file is not None:
-                try:
-                    camera_file.seek(0)
-                    image = Image.open(camera_file)
-                    image.load()
-                    uploaded_image = image.convert("RGB")
-
-                except Exception as error:
-                    st.error(
-                        f"Could not read the photo: {error}"
-                    )
-
-        if uploaded_image is not None:
-            st.image(
-                uploaded_image,
-                caption="Selected image",
-                use_container_width=True
-            )
-
-            if st.button(
-                "✨ Analyze Image",
-                type="primary",
-                key="analyze_single_image_button"
-            ):
-                analysis_type = (
-                    "depict"
-                    if feature == "🔍 What Does This Image Depict?"
-                    else "general"
-                )
-
-                success = run_ai_analysis(
-                    uploaded_image,
-                    challenge=None,
-                    analysis_type=analysis_type
-                )
-
-                if success:
-                    # Record which type of analysis was requested.
-                    st.session_state.last_analysis_mode = (
-                        "depict"
-                        if analysis_type == "depict"
-                        else "free"
-                    )
-
-                    # Re-run using the selected image-understanding
-                    # prompt when the user chose Depict mode.
-                    if analysis_type == "depict":
-                        image_path = None
-
-                        try:
-                            with tempfile.NamedTemporaryFile(
-                                suffix=".png",
-                                delete=False
-                            ) as temp_file:
-                                image_path = temp_file.name
-
-                            uploaded_image.save(
-                                image_path,
-                                format="PNG"
-                            )
-
-                            with st.spinner(
-                                "🤖 AI is identifying the image..."
-                            ):
-                                result = analyze_drawing(
-                                    image_path,
-                                    challenge=None,
-                                    analysis_type="depict"
-                                )
-
-                            st.session_state.result = result
-
-                        except Exception as error:
-                            st.error(
-                                f"Image analysis failed: {error}"
-                            )
-
-                        finally:
-                            if (
-                                image_path
-                                and os.path.exists(image_path)
-                            ):
-                                os.remove(image_path)
-
-
-# ==================================================
-# AI RESULT
-# ==================================================
-
-if st.session_state.result:
-    st.divider()
-    st.header("🤖 AI Analysis Result")
-
-    result_mode = st.session_state.last_analysis_mode
-
-    if result_mode == "challenge":
-        st.caption("Challenge Mode · Score-based evaluation")
-    elif result_mode == "comparison":
-        st.caption("Comparison Mode · Similarities and differences")
-    elif result_mode == "depict":
-        st.caption("Image Understanding · What the image depicts")
-    else:
-        st.caption("Drawing Analysis · Feedback and suggestions")
-
-    st.markdown(st.session_state.result)
-
-
-# ==================================================
-# AI RESULT
-# ==================================================
-
-if st.session_state.result:
-    st.divider()
-    st.header("🤖 AI Analysis Result")
-
-    if st.session_state.last_analysis_mode == "challenge":
-        st.caption("Challenge Mode · Score-based evaluation")
-    else:
-        st.caption("Free Drawing Mode · No challenge score")
-
-    st.markdown(st.session_state.result)
+st.caption(
+    "AI feedback is a helpful estimate, not an objective measure of artistic ability."
+)
