@@ -2,88 +2,107 @@
 import os
 from ollama import Client
 
+# --------------------------------------------------
+# OLLAMA CLOUD CONFIGURATION
+# --------------------------------------------------
+
+MODEL = "gemma4:cloud"
 
 api_key = os.environ.get("OLLAMA_API_KEY")
 
 if not api_key:
     raise RuntimeError(
-        "OLLAMA_API_KEY is not set. "
-        "Configure your Ollama Cloud API key."
+        "OLLAMA_API_KEY is not set. Set your API key before running the app."
     )
-
 
 client = Client(
     host="https://ollama.com",
-    headers={
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers={"Authorization": f"Bearer {api_key}"}
 )
 
 
-def analyze_drawing(
-    image_path,
-    challenge=None,
-    analysis_type="general"
-):
-    """Analyze one drawing or image."""
+# --------------------------------------------------
+# 1. DETAILED DRAWING ANALYSIS
+# --------------------------------------------------
+
+def analyze_drawing(image_path, challenge=None, analysis_type="general"):
 
     if challenge:
-        prompt = f"""
-You are judging a drawing challenge.
+        purpose = f"""
+        This is a drawing challenge.
 
-Challenge:
-{challenge}
+        Challenge instructions:
+        {challenge}
 
-Analyze the submitted drawing.
+        Judge how well the drawing follows the challenge.
+        Do not judge only artistic perfection.
+        """
+    elif analysis_type == "depict":
+        purpose = """
+        Explain exactly what this image depicts.
+        Identify visible objects, people, animals, setting,
+        activities, visual details, mood and possible meaning.
+        Clearly distinguish visible facts from guesses.
+        """
+    else:
+        purpose = """
+        Analyze this drawing in detail without assuming
+        that it belongs to a particular challenge.
+        """
 
-Return exactly this format:
+    prompt = f"""
+You are a friendly, thoughtful and constructive AI art expert.
 
+{purpose}
+
+Study the image carefully. Do not invent objects or details
+that cannot reasonably be seen.
+
+Return your analysis using these sections:
+
+## 1. Artwork Description
+Describe what is visible in the drawing in clear language.
+
+## 2. Main Objects and Details
+Identify the main objects, shapes, characters, background
+and other visible details.
+
+## 3. Creativity and Originality
+Explain what is interesting or creative about the drawing.
+
+## 4. Strengths
+List 3 specific things the artist did well, where possible.
+
+## 5. Improvement Opportunities
+List up to 3 realistic improvements. Be kind and specific.
+
+## 6. Suggestions for the Next Version
+Give practical steps the artist can try next.
+
+## 7. Overall Feedback
+Give a short, encouraging summary.
+
+"""
+
+    if challenge:
+        prompt += """
+## 8. Challenge Evaluation
+Score each criterion from 0 to 10:
+- Relevance to the challenge
+- Required elements
+- Creativity
+- Overall completion
+
+Explain the scores briefly.
+
+End with:
 Score: X/10
 Completed: Yes or No
-Description: Describe what is visible.
-Feedback: One helpful sentence.
-
-Judge fairly. Do not invent invisible details.
-"""
-
-    elif analysis_type == "depict":
-        prompt = """
-You are an AI image understanding assistant.
-
-Explain what this image depicts.
-
-Use this format:
-
-Main Subject: What is the main subject?
-Objects: List the visible objects and details.
-Scene: Describe the scene or activity.
-Visual Evidence: Explain which visible details support your answer.
-Possible Meaning: Give a cautious interpretation if appropriate.
-
-Describe only what is visible.
-If something is unclear, say so instead of guessing.
-Do not assign a score.
-"""
-
-    else:
-        prompt = """
-You are a friendly AI drawing analyst.
-
-Analyze this drawing and return:
-
-Title: A short title
-Description: Describe the drawing in 2-3 sentences.
-Objects and Shapes: List visible objects and shapes.
-Colors and Style: Describe the visible colors and art style.
-Strengths: Mention 2 positive aspects.
-Suggestions: Give 2 practical improvement suggestions.
-
-Be specific, supportive, and honest.
-Do not invent details or assign a score.
+Feedback: one concise sentence
 """
 
     response = client.chat(
-        model="gemma4:cloud",
+        model=MODEL,
         messages=[
             {
                 "role": "user",
@@ -96,57 +115,82 @@ Do not invent details or assign a score.
     return response["message"]["content"]
 
 
-def compare_drawings(image_paths):
-    """Compare two or more drawing images."""
+# --------------------------------------------------
+# 2. ASK AI ABOUT THE SAME DRAWING
+# --------------------------------------------------
 
-    if len(image_paths) < 2:
-        raise ValueError(
-            "Please provide at least two drawings to compare."
-        )
+def ask_about_drawing(
+    image_path,
+    question,
+    previous_analysis="",
+    conversation_history=""
+):
+    prompt = f"""
+You are helping a user understand and improve their drawing.
 
-    prompt = """
-You are an AI visual comparison assistant.
+The user has already received this drawing analysis:
+{previous_analysis}
 
-Several images have been provided. Compare them in the
-order they were uploaded: Drawing 1, Drawing 2, and so on.
+Previous follow-up conversation:
+{conversation_history}
 
-Return your answer using these sections:
+The user now asks:
+{question}
 
-1. WHAT EACH DRAWING DEPICTS
-Explain what is visible in each drawing separately.
+Answer specifically about the attached image.
+Be friendly, clear, useful and detailed when necessary.
 
-2. SIMILARITIES
-Identify subjects, objects, shapes, colors, or ideas
-that the drawings have in common.
-
-3. DIFFERENCES
-Explain the main visible differences between the drawings.
-
-4. DETAILS AND STYLE
-Compare visible details, composition, colors, and drawing style.
-Only discuss aspects that can actually be judged from the images.
-
-5. STRENGTHS OF EACH DRAWING
-Mention specific strengths of every drawing without unfairly
-assuming that more detailed always means better.
-
-6. OVERALL COMPARISON
-Summarize which drawing is stronger for particular aspects,
-if the images provide enough evidence. Explain why.
-
-7. SUGGESTIONS
-Give one or two useful improvement suggestions for each drawing.
-
-Important:
-- Refer to images by their upload order.
-- Do not invent details.
-- Do not assume the artist's age, identity, or intention.
-- Be respectful and constructive.
-- Do not assign numerical scores unless explicitly requested.
+If the user asks how to improve something, give actionable
+steps. If something is not clearly visible, say so instead
+of pretending to know.
 """
 
     response = client.chat(
-        model="gemma4:cloud",
+        model=MODEL,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+                "images": [image_path]
+            }
+        ]
+    )
+
+    return response["message"]["content"]
+
+
+# --------------------------------------------------
+# 3. COMPARE MULTIPLE DRAWINGS
+# --------------------------------------------------
+
+def compare_drawings(image_paths):
+
+    if len(image_paths) < 2:
+        raise ValueError("Upload at least two drawings to compare.")
+
+    prompt = """
+You are an objective and constructive drawing comparison expert.
+
+The user has provided multiple drawings. Refer to them as
+Drawing 1, Drawing 2, Drawing 3, and so on, in upload order.
+
+Analyze each drawing separately, then compare them.
+
+Include:
+1. What each drawing depicts.
+2. Strengths of each drawing.
+3. Differences in details, composition and creativity.
+4. Which drawing best communicates its idea and why.
+5. One improvement suggestion for each drawing.
+6. A fair overall comparison.
+
+Do not assume that the most detailed drawing is always the best.
+Explain uncertainty where image details are unclear.
+Be constructive, not insulting.
+"""
+
+    response = client.chat(
+        model=MODEL,
         messages=[
             {
                 "role": "user",
