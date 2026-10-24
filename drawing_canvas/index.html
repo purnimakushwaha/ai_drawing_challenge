@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}*{box-sizing:border-box}body{margin:0;background:#10152b;color:#f3f2ff}.shell{padding:12px;background:linear-gradient(145deg,#151936,#101a30);border:1px solid #353a68;border-radius:16px}.toolbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:10px}.group{display:flex;flex-wrap:wrap;gap:5px;padding:5px;background:#202647;border:1px solid #39416e;border-radius:10px}button{background:#252e52;border:1px solid #46517f;color:#f3f2ff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;font-size:12px}button:hover{background:#394575}button.active{background:#8060d9;border-color:#b39cff}button.primary{background:linear-gradient(100deg,#8b65e8,#5a83e9);border:0;padding:10px 13px}label{font-size:12px;color:#d6daf2;display:flex;align-items:center;gap:6px}.canvas-wrap{background:#fff;border-radius:10px;overflow:hidden;border:1px solid #545b88;position:relative}canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}.hint{font-size:12px;color:#bfc8eb;margin:9px 2px 1px;line-height:1.5}.small{width:100%;height:1px;background:#353c65;margin:2px 0}@media(max-width:640px){.shell{padding:8px}.toolbar{gap:5px}.group{padding:4px}button{padding:8px;font-size:11px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="toolbar">
+    <div class="group" id="tools">
+      <button data-tool="select" class="active">↖ Select</button>
+      <button data-tool="brush">✏️ Brush</button>
+      <button data-tool="line">╱ Line</button>
+      <button data-tool="rect">▭ Rectangle</button>
+      <button data-tool="circle">◯ Circle</button>
+      <button data-tool="text">T Text</button>
+      <button data-tool="eraser">⌫ Eraser</button>
+    </div>
+    <div class="group">
+      <label>Colour <input id="colour" type="color" value="#29243f" style="width:30px;height:28px;border:0;background:transparent;padding:0"></label>
+      <label>Size <input id="size" type="range" min="1" max="24" value="4" style="width:82px"></label>
+    </div>
+    <div class="group">
+      <button id="undo">↶ Undo</button><button id="redo">↷ Redo</button><button id="clear">🧹 Clear</button>
+    </div>
+    <div class="group">
+      <button id="export">⬇ PNG</button><button id="save" class="primary">💾 Save Drawing</button><button id="analyze" class="primary">✨ Analyze Drawing</button>
+    </div>
+  </div>
+  <div class="canvas-wrap"><canvas id="board" width="1000" height="560" aria-label="Drawing canvas"></canvas></div>
+  <div class="hint">Select an object to move it. Drag a selected object's bottom-right handle to resize. Drawing actions stay in this canvas; Python receives the image only when you click Save or Analyze.</div>
+</div>
+<script>
+(function(){
+const canvas=document.getElementById('board'),ctx=canvas.getContext('2d');
+const toolButtons=[...document.querySelectorAll('[data-tool]')];
+let tool='select',colour='#29243f',size=4,objects=[],undoStack=[],redoStack=[],selected=-1,active=null,dragStart=null,moving=null,resizing=false,changed=false;
+function post(type,value){parent.postMessage({isStreamlitMessage:true,type:type,...value},'*')}
+function setHeight(){post('streamlit:setFrameHeight',{height:document.body.scrollHeight+4})}
+function componentValue(action){const data=canvas.toDataURL('image/png');post('streamlit:setComponentValue',{value:{action:action,png_data_url:data,drawing_json:JSON.stringify({objects:objects}),timestamp:Date.now()}})}
+function clone(v){return JSON.parse(JSON.stringify(v))}
+function checkpoint(){undoStack.push(clone(objects));if(undoStack.length>60)undoStack.shift();redoStack=[]}
+function bounds(o){if(o.type==='brush'||o.type==='eraser'){const xs=o.points.map(p=>p.x),ys=o.points.map(p=>p.y);return {x:Math.min(...xs),y:Math.min(...ys),w:Math.max(1,Math.max(...xs)-Math.min(...xs)),h:Math.max(1,Math.max(...ys)-Math.min(...ys))}}if(o.type==='text')return {x:o.x,y:o.y-22,w:Math.max(40,o.text.length*o.size*0.65),h:o.size*1.5};return {x:Math.min(o.x,o.x2),y:Math.min(o.y,o.y2),w:Math.abs(o.x2-o.x),h:Math.abs(o.y2-o.y)}}
+function drawObject(o){ctx.save();ctx.strokeStyle=o.colour||'#29243f';ctx.fillStyle=o.colour||'#29243f';ctx.lineWidth=o.size||4;ctx.lineCap='round';ctx.lineJoin='round';if(o.type==='brush'||o.type==='eraser'){if(!o.points.length){ctx.restore();return}ctx.globalCompositeOperation='source-over';ctx.beginPath();ctx.moveTo(o.points[0].x,o.points[0].y);for(const p of o.points.slice(1))ctx.lineTo(p.x,p.y);ctx.stroke()}else if(o.type==='line'){ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.lineTo(o.x2,o.y2);ctx.stroke()}else if(o.type==='rect'){ctx.strokeRect(o.x,o.y,o.x2-o.x,o.y2-o.y)}else if(o.type==='circle'){const cx=(o.x+o.x2)/2,cy=(o.y+o.y2)/2,rx=Math.abs(o.x2-o.x)/2,ry=Math.abs(o.y2-o.y)/2;ctx.beginPath();ctx.ellipse(cx,cy,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2);ctx.stroke()}else if(o.type==='text'){ctx.font=`${Math.max(12,o.size*4)}px system-ui`;ctx.fillText(o.text,o.x,o.y)}ctx.restore()}
+function redraw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);objects.forEach(drawObject);if(active)drawObject(active);if(selected>=0&&objects[selected]){const b=bounds(objects[selected]);ctx.save();ctx.strokeStyle='#6f55d9';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.strokeRect(b.x-5,b.y-5,b.w+10,b.h+10);ctx.setLineDash([]);ctx.fillStyle='#6f55d9';ctx.fillRect(b.x+b.w,b.y+b.h,12,12);ctx.restore()} }
+function coords(e){const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
+function hit(p,o){const b=bounds(o);return p.x>=b.x-8&&p.x<=b.x+b.w+8&&p.y>=b.y-8&&p.y<=b.y+b.h+8}
+function nearHandle(p,o){const b=bounds(o);return Math.abs(p.x-(b.x+b.w))<16&&Math.abs(p.y-(b.y+b.h))<16}
+function setTool(t){tool=t;toolButtons.forEach(b=>b.classList.toggle('active',b.dataset.tool===t));canvas.style.cursor=t==='select'?'default':'crosshair'}
+toolButtons.forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
+document.getElementById('colour').addEventListener('input',e=>colour=e.target.value);document.getElementById('size').addEventListener('input',e=>size=Number(e.target.value));
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);const p=coords(e);dragStart=p;changed=true;if(tool==='select'){selected=-1;for(let i=objects.length-1;i>=0;i--){if(hit(p,objects[i])){selected=i;break}}if(selected>=0){checkpoint();const o=objects[selected];if(nearHandle(p,o)){resizing=true}else{moving={x:p.x,y:p.y,object:clone(o)}}}redraw();return}checkpoint();if(tool==='text'){const text=prompt('Enter text for your drawing:');if(text&&text.trim()){objects.push({type:'text',x:p.x,y:p.y,text:text.trim().slice(0,100),colour,size});selected=objects.length-1}redraw();return}if(tool==='brush'||tool==='eraser'){active={type:tool,points:[p],colour:tool==='eraser'?'#ffffff':colour,size:tool==='eraser'?Math.max(18,size*4):size}}else{active={type:tool,x:p.x,y:p.y,x2:p.x,y2:p.y,colour,size}}redraw()});
+canvas.addEventListener('pointermove',e=>{if(!dragStart)return;const p=coords(e);if(tool==='select'&&selected>=0&&moving){const o=objects[selected];const dx=p.x-moving.x,dy=p.y-moving.y;if(resizing){if(o.type==='brush'||o.type==='eraser'){const b=bounds(moving.object);const sx=(b.w+dx)/Math.max(1,b.w),sy=(b.h+dy)/Math.max(1,b.h);o.points=moving.object.points.map(pt=>({x:b.x+(pt.x-b.x)*sx,y:b.y+(pt.y-b.y)*sy}))}else{o.x2=moving.object.x2+dx;o.y2=moving.object.y2+dy}}else{if(o.type==='brush'||o.type==='eraser')o.points=moving.object.points.map(pt=>({x:pt.x+dx,y:pt.y+dy}));else{o.x=moving.object.x+dx;o.y=moving.object.y+dy;if(o.x2!==undefined){o.x2=moving.object.x2+dx;o.y2=moving.object.y2+dy}}}redraw();return}if(active){if(active.points)active.points.push(p);else{active.x2=p.x;active.y2=p.y}redraw()}});
+function endDraw(){if(active){if(active.points&&active.points.length>1||!active.points&&Math.hypot(active.x2-active.x,active.y2-active.y)>2){objects.push(active);selected=objects.length-1}}active=null;dragStart=null;moving=null;resizing=false;redraw()}
+canvas.addEventListener('pointerup',endDraw);canvas.addEventListener('pointercancel',endDraw);
+document.getElementById('undo').onclick=()=>{if(undoStack.length){redoStack.push(clone(objects));objects=undoStack.pop();selected=-1;redraw()}};document.getElementById('redo').onclick=()=>{if(redoStack.length){undoStack.push(clone(objects));objects=redoStack.pop();selected=-1;redraw()}};document.getElementById('clear').onclick=()=>{if(objects.length&&!confirm('Clear the whole canvas?'))return;checkpoint();objects=[];selected=-1;redraw()};
+document.getElementById('export').onclick=()=>{const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='my_drawing.png';a.click()};document.getElementById('save').onclick=()=>componentValue('save');document.getElementById('analyze').onclick=()=>componentValue('analyze');
+function onMessage(event){const d=event.data;if(!d||d.type!=='streamlit:render')return;const args=d.args||{};if(args.reset_token&&args.reset_token!==window.__resetToken){window.__resetToken=args.reset_token;objects=[];undoStack=[];redoStack=[];selected=-1;redraw()}post('streamlit:componentReady',{apiVersion:1});post('streamlit:setFrameHeight',{height:document.body.scrollHeight+4})}
+window.addEventListener('message',onMessage);post('streamlit:componentReady',{apiVersion:1});setTimeout(setHeight,150);redraw();
+})();
+</script>
+</body>
+</html>
