@@ -36,204 +36,52 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .stApp {
-        background:
-            radial-gradient(ellipse at 15% 10%, rgba(92,55,160,.22), transparent 42%),
-            radial-gradient(ellipse at 85% 35%, rgba(31,88,160,.17), transparent 42%),
-            linear-gradient(135deg, #0b1021 0%, #11132b 55%, #101a30 100%);
-        color: #f4f2ff;
-    }
-    [data-testid="stHeader"] { background: transparent; }
-    [data-testid="stSidebar"] { background: #11152b; }
-    h1, h2, h3, h4 { color: #f4f0ff !important; }
-    p, label, li { color: #d9dcef; }
-    [data-testid="stCaptionContainer"] { color: #b9c2df; }
-    .hero {
-        padding: 28px 26px; border-radius: 22px;
-        background: linear-gradient(120deg, rgba(92,58,156,.42), rgba(29,63,115,.34));
-        border: 1px solid rgba(185,164,255,.27); margin-bottom: 22px;
-    }
-    .hero h1 { margin: 0 0 10px 0; font-size: 2.35rem; letter-spacing: -.8px; }
-    .hero p { margin-bottom: 0; line-height: 1.7; color: #e0e4ff; }
-    .panel {
-        padding: 22px; border-radius: 18px;
-        background: rgba(28,31,64,.82);
-        border: 1px solid rgba(166,146,255,.28); margin: 12px 0 20px 0;
-    }
-    .eyebrow { color: #c6b5ff; font-size: .78rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
-    .notice {
-        padding: 14px 16px; border-radius: 12px;
-        background: rgba(41,54,96,.6); border: 1px solid rgba(150,169,255,.3);
-        color: #e2e8ff; line-height: 1.6;
-    }
-    div.stButton > button[kind="primary"] {
-        border: 0; border-radius: 12px; font-weight: 650; min-height: 45px;
-        background: linear-gradient(100deg, #8b65e8, #5a83e9); color: white;
-    }
-    div.stButton > button, [data-testid="stLinkButton"] a { border-radius: 11px; }
-    [data-testid="stExpander"] { border: 1px solid rgba(160,169,220,.24); border-radius: 14px; }
-    [data-testid="stMetric"] {
-        background: rgba(35,39,76,.65); padding: 14px; border-radius: 13px;
-        border: 1px solid rgba(160,169,220,.18);
-    }
-    /* Clear, consistent controls */
-    [data-testid="stTextInput"] input,
-    [data-testid="stTextArea"] textarea,
-    [data-testid="stSelectbox"] [data-baseweb="select"],
-    [data-testid="stNumberInput"] input {
-        border-radius: 10px !important;
-    }
-    [data-testid="stFileUploader"] section {
-        border: 1px dashed rgba(180,170,255,.55);
-        border-radius: 14px;
-        background: rgba(28,31,64,.42);
-    }
-    div.stButton > button {
-        min-height: 42px;
-        white-space: normal;
-        transition: transform .15s ease, border-color .15s ease;
-    }
-    div.stButton > button:hover { border-color: #b8a2ff; transform: translateY(-1px); }
-    [data-testid="stRadio"] > div { gap: 8px; }
-    [data-testid="stRadio"] label {
-        background: rgba(40,43,82,.68);
-        border: 1px solid rgba(166,146,255,.22);
-        border-radius: 12px;
-        padding: 9px 12px;
-    }
-    [data-testid="stSidebar"] [data-testid="stButton"] button { text-align: left; }
-    [data-testid="stExpander"] summary { font-weight: 650; }
-    .quick-start {
-        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px; margin: 8px 0 22px;
-    }
-    .quick-step {
-        padding: 15px; border-radius: 14px;
-        background: rgba(28,31,64,.68);
-        border: 1px solid rgba(166,146,255,.22);
-    }
-    .quick-step strong { display:block; margin-bottom:5px; color:#f4f0ff; }
-    .quick-step span { color:#cbd2ed; font-size:.92rem; line-height:1.45; }
-    .section-hint { color:#cbd2ed; margin-top:-5px; margin-bottom:14px; }
-    @media (max-width: 700px) {
-        .hero { padding: 20px 16px; }
-        .hero h1 { font-size: 1.8rem; }
-        .panel { padding: 16px; }
-        .quick-start { grid-template-columns: 1fr; gap: 8px; }
-        .quick-step { padding: 12px; }
-    }
-
-    /* Premium creative-workspace styling inspired by the references */
-    .stApp {
-        background:
-          radial-gradient(ellipse at 7% 2%, rgba(114,61,255,.24), transparent 34%),
-          radial-gradient(ellipse at 94% 18%, rgba(22,139,255,.18), transparent 32%),
-          radial-gradient(ellipse at 52% 100%, rgba(209,52,159,.12), transparent 38%),
-          #080b17;
-    }
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #151725 0%, #10121f 100%);
-        border-right: 1px solid rgba(139,150,210,.17);
-    }
-    [data-testid="stSidebar"] > div { padding-top: 1.25rem; }
-    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        letter-spacing: -.3px;
-    }
-    .hero {
-        position: relative; overflow: hidden;
-        background:
-          radial-gradient(circle at 85% 5%, rgba(87,121,255,.27), transparent 32%),
-          linear-gradient(115deg, rgba(90,44,160,.34), rgba(18,43,85,.58) 60%, rgba(22,24,48,.88));
-        border: 1px solid rgba(144,137,255,.34);
-        box-shadow: 0 18px 55px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.05);
-        padding: 30px 30px 28px;
-    }
-    .hero:after {
-        content: "✦"; position: absolute; right: 5%; top: 10%;
-        color: rgba(208,196,255,.65); font-size: 3.4rem;
-        text-shadow: 0 0 24px rgba(147,105,255,.65);
-    }
-    .hero h1 {
-        background: linear-gradient(90deg,#f7d8ff,#b6caff 60%,#8be4ff);
-        -webkit-background-clip: text; background-clip: text; color: transparent !important;
-        font-size: clamp(2rem, 4vw, 3rem); line-height: 1.08;
-    }
-    .eyebrow { color:#b9a7ff; letter-spacing:2px; }
-    .quick-step, .panel {
-        background: linear-gradient(145deg, rgba(25,30,57,.94), rgba(16,20,39,.94));
-        border: 1px solid rgba(139,151,219,.22);
-        box-shadow: 0 8px 26px rgba(0,0,0,.13), inset 0 1px rgba(255,255,255,.025);
-        transition: border-color .2s ease, transform .2s ease;
-    }
-    .quick-step:hover, .panel:hover { border-color:rgba(153,126,255,.48); }
-    .quick-step strong { color:#f3edff; }
-    .quick-step span { color:#bfc8e6; }
-    [data-testid="stTabs"] [data-baseweb="tab-list"] {
-        background: rgba(17,21,42,.9); border:1px solid rgba(144,153,216,.18);
-        padding:5px; border-radius:14px; gap:5px;
-    }
-    [data-testid="stTabs"] button[role="tab"] {
-        border-radius:10px; padding:10px 16px; transition:all .2s ease;
-    }
-    [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
-        background:linear-gradient(110deg,#7954dc,#426ee0); color:white;
-    }
-    div.stButton > button[kind="primary"], button[kind="primaryFormSubmit"] {
-        background:linear-gradient(100deg,#8b5cf6,#4f7cf3);
-        box-shadow:0 5px 18px rgba(91,91,230,.22);
-        border:1px solid rgba(255,255,255,.12);
-    }
-    div.stButton > button:not([kind="primary"]) {
-        background:rgba(35,40,69,.85); border:1px solid rgba(144,153,216,.2);
-        color:#e7eaff;
-    }
-    div.stButton > button:hover {
-        border-color:#a994ff; box-shadow:0 7px 20px rgba(70,70,170,.16);
-    }
-    [data-testid="stSelectbox"] [data-baseweb="select"],
-    [data-testid="stTextInput"] input,
-    [data-testid="stTextArea"] textarea,
-    [data-testid="stNumberInput"] input {
-        background:rgba(17,22,43,.92); border-color:rgba(143,153,217,.3);
-    }
-    [data-testid="stFileUploader"] section {
-        background:linear-gradient(135deg,rgba(29,33,63,.8),rgba(17,21,40,.8));
-        border:1px dashed rgba(151,133,255,.55);
-    }
-    [data-testid="stMetric"] {
-        background:linear-gradient(145deg,rgba(35,41,78,.78),rgba(20,25,49,.78));
-        border:1px solid rgba(142,153,222,.2);
-        box-shadow:inset 0 1px rgba(255,255,255,.03);
-    }
-    [data-testid="stExpander"], [data-testid="stAlert"] {
-        border-radius:14px; border-color:rgba(144,153,216,.22);
-    }
-    [data-testid="stImage"] img { border-radius:12px; }
-    hr { border-color:rgba(142,153,222,.18); }
-
-    .gallery-card {
-        background: linear-gradient(145deg, rgba(25,30,57,.96), rgba(13,17,34,.96));
-        border: 1px solid rgba(139,151,219,.24); border-radius: 16px;
-        padding: 10px 10px 14px; margin-bottom: 16px;
-        box-shadow: 0 10px 28px rgba(0,0,0,.16);
-    }
-    .gallery-card [data-testid="stImage"] img { aspect-ratio: 4 / 3; object-fit: cover; }
-    .gallery-tag {
-        display: inline-block; margin: 3px 0 8px; padding: 4px 8px;
-        border-radius: 999px; color: #d9ceff; font-size: .76rem;
-        background: rgba(126,91,224,.18); border: 1px solid rgba(160,130,255,.25);
-    }
-    [data-testid="stVerticalBlockBorderWrapper"] {
-        border-color: rgba(151,134,255,.25) !important;
-        border-radius: 16px !important;
-        background: linear-gradient(145deg, rgba(25,30,57,.70), rgba(13,17,34,.68));
-    }
-    @media (max-width: 700px) {
-        .hero { padding:22px 18px; }
-        .hero:after { right:4%; top:4%; font-size:2rem; }
-        .hero h1 { max-width:85%; font-size:1.8rem; }
-        [data-testid="stTabs"] button[role="tab"] { padding:8px 9px; }
-    }
+    :root { --bg:#0a0b16; --panel:#15172a; --panel2:#1c1e36; --line:rgba(177,157,255,.20); --muted:#aaaecb; --text:#f7f5ff; --purple:#9165ff; --blue:#548dff; }
+    .stApp { background: radial-gradient(ellipse at 12% 0%,rgba(105,63,211,.22),transparent 35%), radial-gradient(ellipse at 95% 20%,rgba(42,111,220,.16),transparent 32%), linear-gradient(135deg,#090b16,#101127 56%,#0b1324); color:var(--text); }
+    [data-testid="stHeader"] { background:rgba(8,10,22,.55); }
+    [data-testid="stSidebar"] { background:linear-gradient(180deg,#111326,#0e1222); border-right:1px solid rgba(177,157,255,.13); }
+    [data-testid="stSidebar"] > div:first-child { padding-top:1.25rem; }
+    h1,h2,h3,h4 { color:var(--text)!important; letter-spacing:-.035em; }
+    p, label, li, [data-testid="stMarkdownContainer"] { color:#d9d9ee; }
+    [data-testid="stCaptionContainer"] { color:var(--muted); }
+    .block-container { max-width:1500px; padding-top:2rem; padding-bottom:3rem; }
+    .brand-row { display:flex; align-items:center; gap:13px; margin-bottom:18px; }
+    .brand-mark { width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:15px;background:linear-gradient(135deg,#9b6aff,#477dff);font-size:25px;box-shadow:0 8px 28px rgba(116,81,255,.28); }
+    .brand-name { font-size:1.15rem;font-weight:800;letter-spacing:.02em;color:#fff; }
+    .brand-sub { font-size:.78rem;color:#a9accb;margin-top:2px; }
+    .hero { position:relative; overflow:hidden; padding:34px 34px 31px; border-radius:25px; background:linear-gradient(115deg,rgba(105,62,202,.36),rgba(40,77,151,.25) 60%,rgba(22,26,51,.65)); border:1px solid rgba(187,167,255,.24); box-shadow:0 18px 50px rgba(0,0,0,.15); margin:4px 0 24px; }
+    .hero:after { content:'✦'; position:absolute; right:7%;top:4%;font-size:5rem;color:rgba(220,209,255,.10); }
+    .hero h1 { margin:8px 0 10px;font-size:clamp(2rem,4vw,3.25rem);line-height:1.08;letter-spacing:-.055em; }
+    .hero p { max-width:780px; margin:0;color:#d4d8f3;line-height:1.75;font-size:1rem; }
+    .eyebrow { color:#c5afff;font-size:.72rem;font-weight:800;letter-spacing:1.8px;text-transform:uppercase; }
+    .panel,.quick-step { padding:21px;border-radius:19px;background:linear-gradient(145deg,rgba(28,30,57,.93),rgba(19,23,43,.94));border:1px solid var(--line);margin:12px 0 18px; }
+    .notice { padding:14px 17px;border-radius:14px;background:rgba(83,91,160,.14);border:1px solid rgba(157,158,255,.20);color:#e3e5ff;line-height:1.65;margin:12px 0 18px; }
+    .quick-start { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:10px 0 24px; }
+    .quick-step { margin:0;padding:17px 18px; }
+    .quick-step strong { display:block;margin-bottom:6px;color:#fff;font-size:.98rem; }
+    .quick-step span { color:#bfc4e2;font-size:.88rem;line-height:1.55; }
+    div.stButton > button,[data-testid="stFormSubmitButton"] button,[data-testid="stLinkButton"] a { border-radius:12px!important;min-height:44px;font-weight:650;transition:all .18s ease;border:1px solid rgba(178,162,255,.23); }
+    div.stButton > button[kind="primary"],[data-testid="stFormSubmitButton"] button[kind="primary"] { background:linear-gradient(100deg,#8c5cff,#4e82ff)!important;color:#fff!important;border:0!important;box-shadow:0 7px 20px rgba(100,78,230,.2); }
+    div.stButton > button:hover { transform:translateY(-1px);border-color:#bba7ff!important;box-shadow:0 7px 20px rgba(80,70,160,.15); }
+    [data-testid="stTextInput"] input,[data-testid="stTextArea"] textarea,[data-testid="stSelectbox"] [data-baseweb="select"],[data-testid="stNumberInput"] input { border-radius:11px!important;background-color:rgba(12,15,31,.75); }
+    [data-testid="stFileUploader"] section { border:1px dashed rgba(174,153,255,.48);border-radius:16px;background:rgba(29,30,61,.38); }
+    [data-testid="stMetric"] { background:linear-gradient(145deg,rgba(37,35,72,.85),rgba(22,26,48,.88));padding:17px;border-radius:17px;border:1px solid rgba(165,151,255,.20); }
+    [data-testid="stMetricLabel"] { color:#b8bcdb!important; }
+    [data-testid="stMetricValue"] { color:#fff!important; }
+    [data-testid="stExpander"] { border:1px solid var(--line);border-radius:15px;background:rgba(22,24,47,.48); }
+    [data-testid="stRadio"] > div { gap:8px; }
+    [data-testid="stRadio"] label { background:rgba(35,37,70,.62);border:1px solid rgba(166,146,255,.18);border-radius:12px;padding:9px 12px; }
+    [data-testid="stTabs"] button { color:#c9c7e5!important; }
+    [data-testid="stTabs"] button[aria-selected="true"] { color:#fff!important;border-bottom-color:#a78bfa!important; }
+    [data-testid="stSidebar"] [data-testid="stButton"] button { text-align:left; }
+    hr { border-color:rgba(171,161,226,.14)!important; }
+    .auth-wrap { display:grid;grid-template-columns:1.05fr .95fr;gap:22px;align-items:stretch;margin-top:14px; }
+    .auth-art { min-height:520px;padding:36px;border-radius:25px;background:radial-gradient(circle at 80% 18%,rgba(113,77,255,.42),transparent 30%),radial-gradient(circle at 15% 85%,rgba(45,132,255,.26),transparent 32%),linear-gradient(145deg,#211746,#121b38 72%,#111326);border:1px solid rgba(189,170,255,.24);display:flex;flex-direction:column;justify-content:space-between; }
+    .auth-art h1 { font-size:clamp(2.2rem,4vw,3.5rem);line-height:1.06;margin:18px 0 12px; }
+    .art-orbit { height:190px;display:flex;align-items:center;justify-content:center;font-size:7rem;text-shadow:0 0 45px rgba(165,127,255,.7); }
+    .auth-card { padding:28px;border-radius:25px;background:linear-gradient(145deg,rgba(27,29,55,.98),rgba(17,21,40,.98));border:1px solid rgba(179,160,255,.20); }
+    .section-hint { color:#c4c7e4;margin-top:-5px;margin-bottom:14px; }
+    @media(max-width:850px) { .auth-wrap{grid-template-columns:1fr}.auth-art{min-height:330px;padding:25px}.art-orbit{height:100px;font-size:4.5rem}.hero{padding:24px 20px}.quick-start{grid-template-columns:1fr}.block-container{padding-top:1rem} }
     </style>
     """,
     unsafe_allow_html=True,
@@ -388,46 +236,56 @@ def authenticate_user(username, password):
 
 
 def render_auth_screen():
-    st.markdown("""<div class="hero"><h1> (◖⁠⚆‿⚆⁠◗)𝐀𝐈 𝐃𝐫𝐚𝐰𝐢𝐧𝐠 𝐒𝐭𝐮𝐝𝐢𝐨｡°・*｡˙⁠✿｡☆ﾟ⁠.✿*⁠･⁠｡ﾟ</h1><p>A friendly space to sketch, try creative challenges, and get helpful feedback from your AI art coach.)</p></div>""", unsafe_allow_html=True)
-    st.markdown("""
-    <div class="quick-start">
-      <div class="quick-step"><strong>🎯 Get an idea</strong><span>Generate a drawing challenge or start with a blank canvas.</span></div>
-      <div class="quick-step"><strong>✏️ Make it yours</strong><span>Draw at your own pace. There is no perfect or wrong drawing.</span></div>
-      <div class="quick-step"><strong>💡 Learn and revisit</strong><span>Ask AI for suggestions and save your artwork in your account.</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-    login_tab, signup_tab = st.tabs(["🔐 Log in", "✨ Create an account"])
-    with login_tab:
-        with st.form("login_form"):
-            username = st.text_input("Username", key="login_username")
-            password = st.text_input("Password", type="password", key="login_password")
-            submitted = st.form_submit_button("Login", type="primary", use_container_width=True)
-        if submitted:
-            user = authenticate_user(username, password)
-            if user:
-                st.session_state["current_user"] = user
-                st.rerun()
-            else:
-                st.error("Username or password is incorrect.")
-    with signup_tab:
-        st.caption("Choose a username with 3–32 letters, numbers, dots, underscores or hyphens. Use a password with at least 8 characters.")
-        st.caption("Your password is stored as a salted hash, not as plain text.")
-        with st.form("signup_form"):
-            new_username = st.text_input("Create username", key="signup_username")
-            new_password = st.text_input("Create password", type="password", key="signup_password")
-            confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm_password")
-            submitted = st.form_submit_button("Create account", type="primary", use_container_width=True)
-        if submitted:
-            if new_password != confirm_password:
-                st.error("The passwords do not match.")
-            else:
-                ok, result = create_account(new_username, new_password)
-                if ok:
-                    st.session_state["current_user"] = {"id": result, "username": new_username.strip()}
-                    st.success("Account created. You're now logged in!")
+    art_col, form_col = st.columns([1.05, .95], gap="large")
+    with art_col:
+        st.markdown("""
+        <div class="auth-art">
+          <div>
+            <div class="brand-row"><div class="brand-mark">✦</div><div><div class="brand-name">AI DRAWING STUDIO</div><div class="brand-sub">Your creative universe</div></div></div>
+            <div class="eyebrow">IMAGINE · DRAW · DISCOVER</div>
+            <h1>Your ideas deserve<br>to come alive.</h1>
+            <p style="color:#d4d7f4;line-height:1.75;max-width:470px">A personal creative space to sketch freely, try playful challenges, and get thoughtful feedback from your AI art coach.</p>
+          </div>
+          <div class="art-orbit">🎨 ✦</div>
+          <div style="color:#c7c6e8;font-size:.9rem">One canvas. Endless possibilities.</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with form_col:
+        st.markdown("<div class='eyebrow'>WELCOME TO YOUR STUDIO</div>", unsafe_allow_html=True)
+        st.markdown("## Create something wonderful")
+        st.markdown("<p style='color:#bfc3df;line-height:1.65'>Log in to continue your creative journey, or create an account to keep your artwork private and saved.</p>", unsafe_allow_html=True)
+        login_tab, signup_tab = st.tabs(["Log in", "Create account"])
+        with login_tab:
+            with st.form("login_form"):
+                username = st.text_input("Username", key="login_username", placeholder="Enter your username")
+                password = st.text_input("Password", type="password", key="login_password", placeholder="Enter your password")
+                submitted = st.form_submit_button("Log in to Studio →", type="primary", use_container_width=True)
+            if submitted:
+                user = authenticate_user(username, password)
+                if user:
+                    st.session_state["current_user"] = user
                     st.rerun()
                 else:
-                    st.error(result)
+                    st.error("Username or password is incorrect.")
+        with signup_tab:
+            st.caption("Use 3–32 characters for your username and at least 8 characters for your password.")
+            with st.form("signup_form"):
+                new_username = st.text_input("Create username", key="signup_username", placeholder="Choose a username")
+                new_password = st.text_input("Create password", type="password", key="signup_password", placeholder="At least 8 characters")
+                confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm_password", placeholder="Repeat your password")
+                submitted = st.form_submit_button("Create my account →", type="primary", use_container_width=True)
+            if submitted:
+                if new_password != confirm_password:
+                    st.error("The passwords do not match.")
+                else:
+                    ok, result = create_account(new_username, new_password)
+                    if ok:
+                        st.session_state["current_user"] = {"id": result, "username": new_username.strip()}
+                        st.success("Account created. You're now logged in!")
+                        st.rerun()
+                    else:
+                        st.error(result)
+    st.markdown("<div class='notice'>🔒 Your saved drawings are associated with your account. Your password is stored as a salted hash, not plain text.</div>", unsafe_allow_html=True)
 
 
 def save_history(user_id, title, mode, challenge, image_bytes, analysis=""):
@@ -679,34 +537,22 @@ def render_creative_canvas(show_challenge=True, canvas_id="free"):
 # SIDEBAR: HISTORY
 # =========================================================
 with st.sidebar:
-    st.markdown(
-        "<div style='padding:12px 13px;margin-bottom:16px;border-radius:14px;"
-        "background:linear-gradient(120deg,rgba(111,75,220,.25),rgba(44,94,178,.15));"
-        "border:1px solid rgba(151,134,255,.25)'>"
-        "<div style='font-size:11px;letter-spacing:1.8px;color:#b8a7ff;font-weight:800'>✦ CREATIVE WORKSPACE</div>"
-        "<div style='font-size:19px;font-weight:800;margin-top:4px;color:#f4f0ff'>AI Drawing Studio</div>"
-        "<div style='font-size:12px;color:#bfc8e6;margin-top:3px'>Your ideas, your gallery</div></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(f"## 👋 {CURRENT_USER['username']}")
-    if st.button("Log out", use_container_width=True):
+    st.markdown("<div class='brand-row'><div class='brand-mark'>✦</div><div><div class='brand-name'>ARTSPACE AI</div><div class='brand-sub'>Your creative universe</div></div></div>", unsafe_allow_html=True)
+    st.markdown(f"### 👋 {CURRENT_USER['username']}")
+    st.caption("Your personal studio")
+    if st.button("↪ Log out", use_container_width=True):
         st.session_state["current_user"] = None
         st.session_state["history_selected_id"] = None
         st.rerun()
     st.divider()
-    st.markdown("## 🗂️ My Drawing History")
-    st.caption("Only your own saved drawings appear here. Select a drawing to preview its image and AI feedback.")
+    st.markdown("#### YOUR LIBRARY")
+    st.caption("Saved drawings and feedback are private to your account.")
     saved_items = get_history(CURRENT_USER["id"])
     if not saved_items:
-        st.info("Nothing saved yet. Use Save Drawing or Analyze Drawing on a canvas to start your personal gallery.")
+        st.info("Your gallery is waiting for its first creation. Save a drawing to see it here.")
     else:
         for item in saved_items:
-            if st.button(
-                f"🎨 {item['title'][:27]}",
-                key=f"history_{item['id']}",
-                use_container_width=True,
-                help=f"{item['mode']} · {item['created_at']}",
-            ):
+            if st.button(f"🎨  {item['title'][:25]}", key=f"history_{item['id']}", use_container_width=True, help=f"{item['mode']} · {item['created_at']}"):
                 st.session_state["history_selected_id"] = item["id"]
                 st.rerun()
 
@@ -714,29 +560,27 @@ with st.sidebar:
 # HEADER AND NAVIGATION
 # =========================================================
 st.markdown(
-    """
+    f"""
     <div class="hero">
-        <div class="eyebrow">YOUR PERSONAL CREATIVE SPACE</div>
-        <h1>🌌 AI Drawing Studio</h1>
-        <p>Turn ideas into drawings, experiment without pressure, and use AI feedback to discover what to try next. Your saved gallery is available from the sidebar.</p>
+      <div class="eyebrow">YOUR PERSONAL CREATIVE SPACE</div>
+      <h1>Welcome back, {CURRENT_USER['username']} ✦</h1>
+      <p>Make something only you could imagine. Start with a fresh canvas, take on an AI-powered challenge, or revisit artwork from your library.</p>
     </div>
     <div class="quick-start">
-      <div class="quick-step"><strong>1 · Choose a mode</strong><span>Pick a challenge, blank canvas, upload, or comparison.</span></div>
-      <div class="quick-step"><strong>2 · Create or add art</strong><span>Follow the on-screen instructions and use the canvas tools.</span></div>
-      <div class="quick-step"><strong>3 · Save or get feedback</strong><span>Save your work, then review the result below the canvas.</span></div>
+      <div class="quick-step"><strong>✦ Find your spark</strong><span>Generate a creative prompt or bring your own idea.</span></div>
+      <div class="quick-step"><strong>✎ Make it yours</strong><span>Draw freely with your own style and pace.</span></div>
+      <div class="quick-step"><strong>✧ Grow with feedback</strong><span>Save your work and ask your AI art coach what to try next.</span></div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-st.markdown("<div class='eyebrow'>WORKSPACE NAVIGATION</div>", unsafe_allow_html=True)
 mode = st.selectbox(
     "What would you like to do today?",
     [
         "🎯 AI Drawing Challenge",
         "🪄 Creative Canvas",
         "🖼️ Upload & AI Analysis",
-        "🗂️ My Gallery",
         "🖼️ Compare Drawings",
     ],
     key="main_navigation",
@@ -787,11 +631,8 @@ if mode == "🎯 AI Drawing Challenge":
         )
         render_creative_canvas(show_challenge=True, canvas_id="challenge")
         if st.session_state.get("analysis_result") and st.session_state.get("analysis_context") == "challenge":
-            st.divider()
-            with st.container(border=True):
-                st.markdown("<div class='eyebrow'>YOUR AI ART COACH</div>", unsafe_allow_html=True)
-                st.subheader("🏆 Your Challenge Feedback")
-                st.markdown(st.session_state["analysis_result"])
+            st.subheader("🏆 Your Challenge Feedback")
+            st.markdown(st.session_state["analysis_result"])
     else:
         st.info("Your next quest is waiting. Generate a challenge to begin!")
 
@@ -804,11 +645,8 @@ elif mode == "🪄 Creative Canvas":
     render_creative_canvas(show_challenge=False, canvas_id="free")
 
     if st.session_state.get("analysis_result") and st.session_state.get("analysis_context") == "free":
-        st.divider()
-        with st.container(border=True):
-            st.markdown("<div class='eyebrow'>YOUR AI ART COACH</div>", unsafe_allow_html=True)
-            st.subheader("💡 Your AI Feedback")
-            st.markdown(st.session_state["analysis_result"])
+        st.subheader("💡 Your AI Feedback")
+        st.markdown(st.session_state["analysis_result"])
 
 # =========================================================
 # MODE 3: UPLOAD IMAGE & AI ANALYSIS (PRESERVED WORKFLOW)
@@ -875,104 +713,13 @@ elif mode == "🖼️ Upload & AI Analysis":
 
     if st.session_state.get("analysis_result") and st.session_state.get("analysis_context") == "upload":
         st.divider()
-        with st.container(border=True):
-            st.markdown("<div class='eyebrow'>YOUR AI ART COACH</div>", unsafe_allow_html=True)
-            st.subheader("💡 Your AI Feedback")
-            st.markdown(st.session_state["analysis_result"])
+        st.subheader("💡 Your AI Feedback")
+        st.markdown(st.session_state["analysis_result"])
 
 # =========================================================
-# MODE 4: PERSONAL GALLERY
+# MODE 4: COMPARE DRAWINGS
 # =========================================================
-elif mode == "🗂️ My Gallery":
-    st.markdown("<div class='eyebrow'>YOUR PRIVATE ART COLLECTION</div>", unsafe_allow_html=True)
-    st.subheader("🗂️ My Gallery")
-    st.write("A home for the drawings you have saved or analyzed. Only drawings linked to your account appear here.")
-    gallery_items = get_history(CURRENT_USER["id"], limit=100)
-    has_saved_artwork = bool(gallery_items)
-    if gallery_items:
-        search_col, filter_col, sort_col = st.columns([2, 1, 1])
-        with search_col:
-            gallery_search = st.text_input(
-                "Search your artwork",
-                placeholder="Search by title or challenge...",
-                key="gallery_search",
-            ).strip().lower()
-        with filter_col:
-            gallery_filter = st.selectbox(
-                "Artwork type",
-                ["All artwork", "Challenges", "Creative canvas", "Uploads", "With AI feedback"],
-                key="gallery_filter",
-            )
-        with sort_col:
-            gallery_sort = st.selectbox(
-                "Sort by",
-                ["Newest first", "Oldest first", "Title A–Z"],
-                key="gallery_sort",
-            )
-
-        filtered_items = []
-        for item in gallery_items:
-            search_blob = f"{item.get('title', '')} {item.get('challenge', '')} {item.get('mode', '')}".lower()
-            if gallery_search and gallery_search not in search_blob:
-                continue
-            item_mode = item.get("mode", "")
-            if gallery_filter == "Challenges" and "Challenge" not in item_mode:
-                continue
-            if gallery_filter == "Creative canvas" and item_mode != "Creative Canvas":
-                continue
-            if gallery_filter == "Uploads" and item_mode != "Uploaded Image":
-                continue
-            if gallery_filter == "With AI feedback" and not item.get("analysis"):
-                continue
-            filtered_items.append(item)
-
-        if gallery_sort == "Oldest first":
-            filtered_items.sort(key=lambda item: item.get("created_at", ""))
-        elif gallery_sort == "Title A–Z":
-            filtered_items.sort(key=lambda item: item.get("title", "").casefold())
-        gallery_items = filtered_items
-
-    if not gallery_items and not has_saved_artwork:
-        st.markdown("""
-        <div class="panel">
-          <div class="eyebrow">YOUR GALLERY IS READY</div>
-          <h3>Every masterpiece starts somewhere ✨</h3>
-          <p>Make a drawing in Creative Canvas or complete a challenge, then choose Save Drawing or Analyze Drawing to add it here.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.info("Tip: choose **Creative Canvas** from Workspace Navigation to make your first drawing.")
-    elif not gallery_items:
-        st.info("No artwork matches these search and filter settings. Try a different search or choose All artwork.")
-    else:
-        analyzed_count = sum(1 for item in gallery_items if item.get("analysis"))
-        challenge_count = sum(1 for item in gallery_items if "Challenge" in item.get("mode", ""))
-        metric_cols = st.columns(3)
-        metric_cols[0].metric("Saved artworks", len(gallery_items))
-        metric_cols[1].metric("AI feedback", analyzed_count)
-        metric_cols[2].metric("Challenges", challenge_count)
-        st.markdown("<div class='gallery-grid'>", unsafe_allow_html=True)
-        cards = st.columns(3, gap="medium")
-        for index, item in enumerate(gallery_items):
-            with cards[index % 3]:
-                record = get_history_item(item["id"], CURRENT_USER["id"])
-                if not record:
-                    continue
-                st.markdown("<div class='gallery-card'>", unsafe_allow_html=True)
-                st.image(bytes(record["image"]), use_container_width=True)
-                st.markdown(f"**{item['title']}**")
-                st.caption(f"{item['mode']} · {item['created_at']}")
-                if item.get("analysis"):
-                    st.markdown("<span class='gallery-tag'>✦ AI feedback saved</span>", unsafe_allow_html=True)
-                if st.button("Open artwork", key=f"gallery_open_{item['id']}", use_container_width=True):
-                    st.session_state["history_selected_id"] = item["id"]
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# =========================================================
-# MODE 5: COMPARE DRAWINGS
-# =========================================================
-elif mode == "🖼️ Compare Drawings":
+else:
     st.subheader("🖼️ Compare your creative ideas")
     st.write("Upload 2–10 drawings to ask AI for a side-by-side comparison. Use images you want to learn from, not as a score of your ability.")
     uploaded_files = st.file_uploader(
