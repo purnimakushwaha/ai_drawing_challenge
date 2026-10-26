@@ -332,7 +332,8 @@ def restore_remembered_user():
             connection.execute("DELETE FROM remembered_sessions WHERE token_hash=?", (token_hash,))
             connection.commit()
     guest_name = cookies.get("studio_guest_name")
-    if guest_name and not st.session_state.get("current_user"):
+    # When a guest explicitly chooses Sign in, do not immediately restore the guest cookie.
+    if guest_name and not st.session_state.get("current_user") and not st.session_state.get("auth_return_to_login"):
         clean = re.sub(r"[^A-Za-z0-9 _.-]", "", str(guest_name)).strip()[:32]
         if clean:
             st.session_state["current_user"] = {"id": None, "username": clean, "is_guest": True}
@@ -398,8 +399,29 @@ def render_auth_screen():
     </div>
     """, unsafe_allow_html=True)
 
+    if st.session_state.pop("auth_return_to_login", False):
+        st.session_state["auth_mode"] = "login"
     if "auth_mode" not in st.session_state:
         st.session_state["auth_mode"] = "create"
+
+    # Guest access is the first clear action; account access follows below.
+    _, guest_center, _ = st.columns([1, 2.15, 1])
+    with guest_center:
+        st.markdown("""
+        <div class="auth-guest-card" style="margin:0 auto 12px;">
+          <h3>🎨 Continue as a Guest</h3>
+          <p>Jump straight into the studio without creating an account. Guest drawings are not saved to an account or personal history.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        with st.form("guest_form"):
+            guest_name = st.text_input("What should we call you?", max_chars=32, placeholder="Enter a display name")
+            guest_submit = st.form_submit_button("🚀 Enter as Guest", use_container_width=True, type="primary")
+        if guest_submit:
+            if start_guest(guest_name):
+                st.rerun()
+            else:
+                st.error("Please enter a name with at least 2 characters.")
+        st.markdown("<div style='text-align:center;color:#bfc8e5;font-size:.82rem;margin:18px 0 12px;'>OR CONTINUE WITH AN ACCOUNT</div>", unsafe_allow_html=True)
 
     # A centered, single-column form avoids mismatched card heights and uneven spacing.
     _, center, _ = st.columns([1, 2.15, 1])
@@ -447,20 +469,6 @@ def render_auth_screen():
                 else:
                     st.error("Username or password is incorrect.")
 
-        st.markdown("""
-        <div class="auth-guest-card">
-          <h3>🎨 Try the studio as a guest</h3>
-          <p>You can still draw and use AI tools. Guest drawings are not saved to your account, and your history will not be available when you return.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        with st.form("guest_form"):
-            guest_name = st.text_input("What should we call you?", max_chars=32, placeholder="Enter a display name")
-            guest_submit = st.form_submit_button("🚀 Enter as Guest", use_container_width=True)
-        if guest_submit:
-            if start_guest(guest_name):
-                st.rerun()
-            else:
-                st.error("Please enter a name with at least 2 characters.")
 
 def save_history(user_id, title, mode, challenge, image_bytes, analysis=""):
     # Guests can draw and analyze, but never write to the persistent history table.
@@ -546,7 +554,32 @@ CURRENT_USER = st.session_state["current_user"]
 IS_GUEST = bool(CURRENT_USER.get("is_guest"))
 
 # Return link opens the Creative Universe dashboard from the standalone app.
-CREATIVE_UNIVERSE_URL = os.environ.get("CREATIVE_UNIVERSE_URL", "")
+CREATIVE_UNIVERSE_URL = (
+    os.environ.get("CREATIVE_UNIVERSE_URL", "").strip()
+    or str(st.secrets.get("CREATIVE_UNIVERSE_URL", "")).strip()
+)
+
+# Persistent return navigation: the dashboard is opened in a separate browser tab,
+# so browser history alone cannot reliably return the user to Creative Universe.
+def render_return_to_universe():
+    """Show a clear return link when the public dashboard URL is configured."""
+    if CREATIVE_UNIVERSE_URL.startswith(("https://", "http://")):
+        st.link_button(
+            "🌌 Back to Creative Universe",
+            CREATIVE_UNIVERSE_URL,
+            use_container_width=True,
+            help="Return to the Creative Universe project dashboard.",
+        )
+    else:
+        st.caption("🌌 To enable Back to Creative Universe, set CREATIVE_UNIVERSE_URL in app Secrets.")
+
+# Top-right navigation so users can always find their way back to the dashboard.
+_nav_left, _nav_spacer, _nav_right = st.columns([2.2, 5, 2.5])
+with _nav_left:
+    st.markdown("<div style='padding-top:7px;color:#cbd5f0;font-size:.85rem;'>🎨 <b>AI Drawing Studio</b></div>", unsafe_allow_html=True)
+with _nav_right:
+    if CREATIVE_UNIVERSE_URL.startswith(("https://", "http://")):
+        st.link_button("🌌 Back to Creative Universe", CREATIVE_UNIVERSE_URL, use_container_width=True)
 
 # Lightweight in-page drawing canvas. The browser only sends the drawing to
 # Python when the user clicks Save Drawing or Analyze Drawing.
@@ -763,9 +796,32 @@ def render_creative_canvas(show_challenge=True, canvas_id="free"):
 # SIDEBAR: HISTORY
 # =========================================================
 with st.sidebar:
+    if CREATIVE_UNIVERSE_URL.startswith(("https://", "http://")):
+        st.link_button("🌌 Back to Creative Universe", CREATIVE_UNIVERSE_URL, use_container_width=True)
+    else:
+        st.info("To show the dashboard return button, add CREATIVE_UNIVERSE_URL to Streamlit Secrets.")
+    st.divider()
     st.markdown(f"## 👋 {CURRENT_USER['username']}")
     if IS_GUEST:
         st.caption("Guest session · history is not saved")
+        st.markdown(
+            "<div style='padding:10px 12px;border:1px solid rgba(147,130,255,.35);"
+            "border-radius:12px;background:linear-gradient(135deg,rgba(91,72,170,.22),"
+            "rgba(36,102,145,.18));margin:8px 0 10px;'>"
+            "<div style='font-weight:700;color:#e9e3ff;font-size:.92rem;'>Keep your artwork</div>"
+            "<div style='color:#cbd5f0;font-size:.78rem;line-height:1.45;margin-top:4px;'>"
+            "Sign in or create an account to save drawings and build your personal gallery.</div></div>",
+            unsafe_allow_html=True,
+        )
+        if st.button("🔐 Sign in / Create account", key="guest_signin_sidebar", use_container_width=True, type="primary"):
+            try:
+                cookie_manager.delete("studio_guest_name")
+            except Exception:
+                pass
+            st.session_state["current_user"] = None
+            st.session_state["auth_return_to_login"] = True
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
     else:
         st.caption("Your account stays signed in on this device for up to 30 days.")
     if st.button("↪ Exit studio", use_container_width=True):
