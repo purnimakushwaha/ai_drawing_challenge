@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 import base64
 import sqlite3
 import tempfile
@@ -7,7 +8,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -302,7 +303,55 @@ def init_history_db():
         if "user_id" not in columns:
             connection.execute("ALTER TABLE drawing_history ADD COLUMN user_id INTEGER")
         connection.execute("CREATE INDEX IF NOT EXISTS idx_history_user_id ON drawing_history(user_id, id DESC)")
+        connection.execute(
+            """CREATE TABLE IF NOT EXISTS feedback_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                display_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                app_area TEXT NOT NULL,
+                impact TEXT NOT NULL,
+                message TEXT NOT NULL,
+                steps_to_reproduce TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )"""
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback_submissions(id DESC)"
+        )
         connection.commit()
+
+
+def save_feedback(user_id, display_name, category, app_area, impact, message, steps_to_reproduce=""):
+    """Save a feedback report without exposing other users' submissions."""
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    clean_name = (str(display_name or "Artist").strip() or "Artist")[:80]
+    clean_message = str(message or "").strip()[:3000]
+    clean_steps = str(steps_to_reproduce or "").strip()[:2000]
+    with sqlite3.connect(HISTORY_DB) as connection:
+        cursor = connection.execute(
+            """INSERT INTO feedback_submissions
+            (user_id, display_name, category, app_area, impact, message, steps_to_reproduce, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, clean_name, str(category)[:100], str(app_area)[:100], str(impact)[:50],
+             clean_message, clean_steps, created_at),
+        )
+        connection.commit()
+        return cursor.lastrowid
+
+
+def get_feedback_submissions(limit=500):
+    """Fetch feedback for the password-protected app-owner inbox."""
+    with sqlite3.connect(HISTORY_DB) as connection:
+        connection.row_factory = sqlite3.Row
+        rows = connection.execute(
+            """SELECT id, display_name, category, app_area, impact, message,
+                      steps_to_reproduce, created_at
+               FROM feedback_submissions ORDER BY id DESC LIMIT ?""",
+            (max(1, min(int(limit), 2000)),),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
 
 def _password_digest(password, salt):
@@ -912,6 +961,11 @@ with st.sidebar:
         st.session_state["current_user"] = None
         st.session_state["history_selected_id"] = None
         st.rerun()
+    if st.button("💬 Share feedback", key="sidebar_share_feedback", use_container_width=True):
+        st.session_state["active_mode"] = "📝 Feedback"
+        st.session_state["history_selected_id"] = None
+        st.session_state["history_edit_id"] = None
+        st.rerun()
     st.divider()
     st.markdown("## 🗂️ My Drawing History")
     if IS_GUEST:
@@ -1130,7 +1184,8 @@ if mode == "🏠 Home":
     div[class*="st-key-dashboard_ai_drawing_challenge"] button::after,
     div[class*="st-key-dashboard_creative_canvas"] button::after,
     div[class*="st-key-dashboard_upload_and_ai_analysis"] button::after,
-    div[class*="st-key-dashboard_compare_drawings"] button::after {
+    div[class*="st-key-dashboard_compare_drawings"] button::after,
+    div[class*="st-key-dashboard_feedback"] button::after {
         position: absolute; right: 16px; top: 22px; width: 76px; height: 76px;
         display: flex; align-items: center; justify-content: center;
         border-radius: 24px; font-size: 2.55rem; line-height: 1;
@@ -1150,13 +1205,16 @@ if mode == "🏠 Home":
     div[class*="st-key-dashboard_compare_drawings"] button::after {
         content: "✨"; background: radial-gradient(circle at 30% 20%,rgba(255,226,141,.35),transparent 55%),linear-gradient(145deg,#76528f,#293f77);
     }
+    div[class*="st-key-dashboard_feedback"] button::after {
+        content: "💬"; background: radial-gradient(circle at 30% 20%,rgba(174,234,255,.35),transparent 55%),linear-gradient(145deg,#376b9b,#29366f);
+    }
     div[class*="st-key-dashboard_"] button:hover {
         border-color: rgba(190,169,255,.75) !important;
         box-shadow: 0 15px 34px rgba(2,5,20,.24) !important;
         transform: translateY(-2px);
     }
     .dashboard-tip{border-radius:16px;padding:15px 17px;margin:12px 0 18px;background:linear-gradient(100deg,rgba(96,67,164,.20),rgba(37,87,145,.14));border:1px solid rgba(164,158,255,.21);color:#e2e7ff;line-height:1.6}
-    @media(max-width:850px){.studio-hero{grid-template-columns:1fr;padding:25px 23px}.studio-hero-art{min-height:205px}.studio-hero h1{font-size:2.2rem}.activity-card{min-height:155px}div[class*="st-key-dashboard_"] button{padding-right:88px!important;min-height:160px!important}div[class*="st-key-dashboard_ai_drawing_challenge"] button::after,div[class*="st-key-dashboard_creative_canvas"] button::after,div[class*="st-key-dashboard_upload_and_ai_analysis"] button::after,div[class*="st-key-dashboard_compare_drawings"] button::after{width:62px;height:62px;right:12px;top:18px;font-size:2rem;border-radius:19px}}
+    @media(max-width:850px){.studio-hero{grid-template-columns:1fr;padding:25px 23px}.studio-hero-art{min-height:205px}.studio-hero h1{font-size:2.2rem}.activity-card{min-height:155px}div[class*="st-key-dashboard_"] button{padding-right:88px!important;min-height:160px!important}div[class*="st-key-dashboard_ai_drawing_challenge"] button::after,div[class*="st-key-dashboard_creative_canvas"] button::after,div[class*="st-key-dashboard_upload_and_ai_analysis"] button::after,div[class*="st-key-dashboard_compare_drawings"] button::after,div[class*="st-key-dashboard_feedback"] button::after{width:62px;height:62px;right:12px;top:18px;font-size:2rem;border-radius:19px}}
     @media(prefers-reduced-motion:reduce){.activity-card{transition:none}.activity-card:hover{transform:none}}
     </style>''', unsafe_allow_html=True)
 
@@ -1177,11 +1235,18 @@ if mode == "🏠 Home":
         ("🪄", "Creative Canvas", "YOUR BLANK CANVAS", "A blank canvas for anything you imagine.", "🪄 Creative Canvas", "Open the canvas"),
         ("🖼️", "Upload & AI Analysis", "A FRESH PERSPECTIVE", "Upload your art for helpful AI feedback.", "🖼️ Upload & AI Analysis", "Analyze artwork"),
         ("🧩", "Compare Drawings", "SEE THE DIFFERENCE", "View two drawings side by side and compare them with AI.", "🖼️ Compare Drawings", "Compare artwork"),
+        ("💬", "Feedback", "HELP US IMPROVE", "Found a problem or have an idea? Tell us what happened.", "📝 Feedback", "Share feedback"),
     ]
     # The entire activity card is a real button, not decorative HTML.
-    for row_start in (0, 2):
-        cols = st.columns(2, gap="medium")
-        for col, (emoji, title, kicker, description, option, button_label) in zip(cols, activities[row_start:row_start+2]):
+    # A single final card is centred so the dashboard stays balanced.
+    for row_start in range(0, len(activities), 2):
+        row_activities = activities[row_start:row_start + 2]
+        if len(row_activities) == 1:
+            _, centred_col, _ = st.columns([0.5, 1, 0.5], gap="medium")
+            cols = [centred_col]
+        else:
+            cols = st.columns(2, gap="medium")
+        for col, (emoji, title, kicker, description, option, button_label) in zip(cols, row_activities):
             with col:
                 card_label = f"{emoji}  {title}\n{kicker}  ·  {description}\n{button_label}  →"
                 if st.button(
@@ -1379,6 +1444,149 @@ elif mode == "🖼️ Compare Drawings":
         st.divider()
         st.subheader("📊 Your Comparison Results")
         st.markdown(st.session_state["comparison_result"])
+
+# =========================================================
+# MODE 5: USER FEEDBACK & ISSUE REPORTING
+# =========================================================
+elif mode == "📝 Feedback":
+    st.markdown(
+        "<section class='hero'><div class='eyebrow'>YOUR VOICE MATTERS</div>"
+        "<h1>Help us make the studio better.</h1>"
+        "<p>Found a bug, a confusing screen, or something that could work better? Tell us what happened so we can improve the experience.</p></section>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<div class='notice'>💡 Please describe what you clicked, what you expected, and what happened instead. "
+        "Do not include your password or other sensitive information.</div>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    with st.form("studio_feedback_form", clear_on_submit=True):
+        category = st.selectbox(
+            "What would you like to share?",
+            [
+                "Bug / something is not working",
+                "Drawing canvas issue",
+                "AI feedback or challenge issue",
+                "Login / account issue",
+                "Design or usability problem",
+                "Suggestion / new feature",
+                "Other feedback",
+            ],
+            key="feedback_category",
+        )
+        area = st.selectbox(
+            "Where did it happen?",
+            [
+                "AI Drawing Challenge",
+                "Creative Canvas",
+                "Upload & AI Analysis",
+                "Compare Drawings",
+                "Login / Create account",
+                "Dashboard / navigation",
+                "Other / not sure",
+            ],
+            key="feedback_area",
+        )
+        impact = st.selectbox(
+            "How much does it affect you?",
+            ["Small issue", "Makes the feature difficult to use", "I cannot continue using the feature"],
+            key="feedback_impact",
+        )
+        message = st.text_area(
+            "Describe the issue or your suggestion *",
+            placeholder="Example: I clicked Analyze Drawing, but nothing happened. This was on the challenge canvas.",
+            height=145,
+            max_chars=3000,
+            key="feedback_message",
+        )
+        steps = st.text_area(
+            "What were you doing when it happened? (optional)",
+            placeholder="Steps to reproduce, error text, or anything else that may help.",
+            height=95,
+            max_chars=2000,
+            key="feedback_steps",
+        )
+        submitted = st.form_submit_button("📨 Send feedback", type="primary", use_container_width=True)
+
+    if submitted:
+        if not message.strip():
+            st.error("Please describe the problem or suggestion before sending.")
+        else:
+            try:
+                feedback_user_id = None if IS_GUEST else CURRENT_USER.get("id")
+                feedback_id = save_feedback(
+                    user_id=feedback_user_id,
+                    display_name=CURRENT_USER.get("username", "Artist"),
+                    category=category,
+                    app_area=area,
+                    impact=impact,
+                    message=message,
+                    steps_to_reproduce=steps,
+                )
+                st.success(f"Thank you! Your feedback was saved successfully (reference #{feedback_id}).")
+                st.caption("Your message is stored for the app owner to review. Please do not send passwords or sensitive personal details.")
+            except Exception as error:
+                st.error(f"We could not save your feedback. Please try again. Details: {error}")
+
+    # Optional, password-protected inbox for the app owner. Configure the password
+    # in Streamlit Secrets or an environment variable; submissions are never public.
+    configured_feedback_password = (
+        os.environ.get("FEEDBACK_ADMIN_PASSWORD", "").strip()
+        or str(st.secrets.get("FEEDBACK_ADMIN_PASSWORD", "")).strip()
+    )
+    st.divider()
+    with st.expander("🔐 App owner: feedback inbox", expanded=False):
+        if not configured_feedback_password:
+            st.info(
+                "The private inbox is not enabled yet. To review and export submissions, add "
+                "FEEDBACK_ADMIN_PASSWORD to the app's Streamlit Secrets. The feedback form itself is ready to receive reports."
+            )
+        else:
+            with st.form("feedback_admin_login_form"):
+                entered_password = st.text_input("Owner password", type="password", key="feedback_admin_password_input")
+                unlock_inbox = st.form_submit_button("Unlock inbox", type="primary")
+            if unlock_inbox:
+                st.session_state["feedback_admin_unlocked"] = hmac.compare_digest(
+                    entered_password, configured_feedback_password
+                )
+            if st.session_state.get("feedback_admin_unlocked"):
+                reports = get_feedback_submissions()
+                st.markdown("### Submitted reports")
+                if not reports:
+                    st.info("No feedback has been submitted yet.")
+                else:
+                    st.caption(f"Showing {len(reports)} most recent submission(s).")
+                    for report in reports:
+                        with st.container(border=True):
+                            st.markdown(
+                                f"**#{report['id']} · {report['category']}**  \n"
+                                f"<span style='color:#bfc7e4;font-size:.85rem'>{html.escape(report['created_at'])} · "
+                                f"{html.escape(report['display_name'])} · {html.escape(report['app_area'])}</span>",
+                                unsafe_allow_html=True,
+                            )
+                            st.caption(f"Impact: {report['impact']}")
+                            st.write(report["message"])
+                            if report["steps_to_reproduce"]:
+                                st.markdown("**Extra details / steps**")
+                                st.write(report["steps_to_reproduce"])
+                    export_buffer = StringIO()
+                    writer = csv.DictWriter(
+                        export_buffer,
+                        fieldnames=["id", "display_name", "category", "app_area", "impact", "message", "steps_to_reproduce", "created_at"],
+                    )
+                    writer.writeheader()
+                    writer.writerows(reports)
+                    st.download_button(
+                        "⬇️ Download feedback as CSV",
+                        data=export_buffer.getvalue().encode("utf-8-sig"),
+                        file_name="ai_drawing_studio_feedback.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+                    if st.button("Lock feedback inbox", key="lock_feedback_inbox"):
+                        st.session_state["feedback_admin_unlocked"] = False
+                        st.rerun()
 
 # =========================================================
 # FOLLOW-UP QUESTIONS ABOUT LAST ANALYZED DRAWING
