@@ -6,11 +6,12 @@ import tempfile
 import hashlib
 import hmac
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 
 import streamlit as st
 import streamlit.components.v1 as components
+import extra_streamlit_components as stx
 from PIL import Image
 
 from ollama_client import (
@@ -29,6 +30,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Browser cookies keep a signed-in account or guest name on this device.
+cookie_manager = stx.CookieManager(key="studio_cookie_manager")
 
 # =========================================================
 # THEME
@@ -214,6 +218,14 @@ def init_history_db():
             created_at TEXT NOT NULL
         )""")
         connection.execute(
+            """CREATE TABLE IF NOT EXISTS remembered_sessions (
+                token_hash TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                expires_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )"""
+        )
+        connection.execute(
             """CREATE TABLE IF NOT EXISTS drawing_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -276,6 +288,72 @@ def authenticate_user(username, password):
     return None
 
 
+def _cookie_set(key, value):
+    try:
+        cookie_manager.set(key, value, expires_at=datetime.now() + timedelta(days=30))
+    except Exception:
+        # The current Streamlit session still works if browser cookies are blocked.
+        pass
+
+
+def remember_account(user):
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    expires = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    with sqlite3.connect(HISTORY_DB) as connection:
+        connection.execute("INSERT OR REPLACE INTO remembered_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)", (token_hash, user["id"], expires))
+        connection.commit()
+    _cookie_set("studio_session", token)
+    try:
+        cookie_manager.delete("studio_guest_name")
+    except Exception:
+        pass
+    st.session_state["current_user"] = user
+
+
+def restore_remembered_user():
+    try:
+        cookies = cookie_manager.get_all() or {}
+    except Exception:
+        cookies = {}
+    token = cookies.get("studio_session")
+    if token:
+        token_hash = hashlib.sha256(str(token).encode("utf-8")).hexdigest()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with sqlite3.connect(HISTORY_DB) as connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute(
+                "SELECT u.id, u.username, s.expires_at FROM remembered_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?",
+                (token_hash,),
+            ).fetchone()
+            if row and row["expires_at"] >= now:
+                st.session_state["current_user"] = {"id": row["id"], "username": row["username"], "is_guest": False}
+                return
+            connection.execute("DELETE FROM remembered_sessions WHERE token_hash=?", (token_hash,))
+            connection.commit()
+    guest_name = cookies.get("studio_guest_name")
+    if guest_name and not st.session_state.get("current_user"):
+        clean = re.sub(r"[^A-Za-z0-9 _.-]", "", str(guest_name)).strip()[:32]
+        if clean:
+            st.session_state["current_user"] = {"id": None, "username": clean, "is_guest": True}
+
+
+def start_guest(name):
+    clean = re.sub(r"\s+", " ", (name or "").strip())[:32]
+    if len(clean) < 2:
+        return False
+    try:
+        cookie_manager.delete("studio_session")
+    except Exception:
+        pass
+    _cookie_set("studio_guest_name", clean)
+    st.session_state["history_selected_id"] = None
+    st.session_state["history_edit_id"] = None
+    st.session_state["latest_history_id"] = None
+    st.session_state["current_user"] = {"id": None, "username": clean, "is_guest": True}
+    return True
+
+
 def render_auth_screen():
     """Welcoming sign-in screen with a polished creative-studio hero."""
     st.markdown("""
@@ -336,7 +414,7 @@ def render_auth_screen():
                 else:
                     ok, result = create_account(new_username, new_password)
                     if ok:
-                        st.session_state["current_user"] = {"id": result, "username": new_username.strip()}
+                        remember_account({"id": result, "username": new_username.strip(), "is_guest": False})
                         st.success("Your workspace is ready! Welcome to AI Drawing Studio.")
                         st.rerun()
                     else:
@@ -355,7 +433,7 @@ def render_auth_screen():
             if submitted:
                 user = authenticate_user(username, password)
                 if user:
-                    st.session_state["current_user"] = user
+                    remember_account({**user, "is_guest": False})
                     st.rerun()
                 else:
                     st.error("Username or password is incorrect.")
@@ -365,8 +443,23 @@ def render_auth_screen():
                 st.rerun()
             st.caption("For your security, passwords are stored as salted hashes—not as readable plain text.")
 
+        st.markdown("---")
+        st.markdown("### 🎨 Just want to try the studio?")
+        st.info("Guest mode does not save drawing history. Your saved gallery will not be available later. Create an account or log in if you want your drawings and AI feedback saved privately.")
+        with st.form("guest_form"):
+            guest_name = st.text_input("What should we call you?", max_chars=32, placeholder="Enter a display name")
+            guest_submit = st.form_submit_button("🚀 Enter as Guest", use_container_width=True)
+        if guest_submit:
+            if start_guest(guest_name):
+                st.rerun()
+            else:
+                st.error("Please enter a name with at least 2 characters.")
+
 
 def save_history(user_id, title, mode, challenge, image_bytes, analysis=""):
+    # Guests can draw and analyze, but never write to the persistent history table.
+    if user_id is None:
+        return None
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with sqlite3.connect(HISTORY_DB) as connection:
         cursor = connection.execute(
@@ -439,9 +532,15 @@ def delete_history_item(record_id, user_id):
 # Initialise accounts/history before showing the login screen.
 init_history_db()
 if not st.session_state.get("current_user"):
+    restore_remembered_user()
+if not st.session_state.get("current_user"):
     render_auth_screen()
     st.stop()
 CURRENT_USER = st.session_state["current_user"]
+IS_GUEST = bool(CURRENT_USER.get("is_guest"))
+
+# Return link opens the Creative Universe dashboard from the standalone app.
+CREATIVE_UNIVERSE_URL = os.environ.get("CREATIVE_UNIVERSE_URL", "")
 
 # Lightweight in-page drawing canvas. The browser only sends the drawing to
 # Python when the user clicks Save Drawing or Analyze Drawing.
@@ -626,7 +725,10 @@ def render_creative_canvas(show_challenge=True, canvas_id="free"):
                 )
                 st.session_state["latest_history_id"] = record_id
                 st.session_state["last_drawing_bytes"] = image_bytes
-                st.success("Drawing saved to Drawing History. You can also download it using the PNG button on the canvas.")
+                if IS_GUEST:
+                    st.info("Guest mode: this drawing is not saved to history. Use the PNG button to download a copy, or create an account to keep your gallery.")
+                else:
+                    st.success("Drawing saved to Drawing History. You can also download it using the PNG button on the canvas.")
                 st.image(image_bytes, caption="Saved drawing", use_container_width=True)
             else:
                 result = run_analysis(
@@ -644,7 +746,10 @@ def render_creative_canvas(show_challenge=True, canvas_id="free"):
                     analysis=result,
                 )
                 st.session_state["latest_history_id"] = record_id
-                st.success("AI analysis complete! Your drawing and feedback were saved in Drawing History.")
+                if IS_GUEST:
+                    st.info("AI analysis complete. Guest mode does not save history, so download your drawing if you want to keep a copy.")
+                else:
+                    st.success("AI analysis complete! Your drawing and feedback were saved in Drawing History.")
         except Exception as error:
             st.error(f"Could not process the drawing: {error}")
 
@@ -653,14 +758,34 @@ def render_creative_canvas(show_challenge=True, canvas_id="free"):
 # =========================================================
 with st.sidebar:
     st.markdown(f"## 👋 {CURRENT_USER['username']}")
-    if st.button("Log out", use_container_width=True):
+    if IS_GUEST:
+        st.caption("Guest session · history is not saved")
+    else:
+        st.caption("Your account stays signed in on this device for up to 30 days.")
+    if st.button("↪ Exit studio", use_container_width=True):
+        try:
+            cookies = cookie_manager.get_all() or {}
+            token = cookies.get("studio_session")
+            if token:
+                token_hash = hashlib.sha256(str(token).encode("utf-8")).hexdigest()
+                with sqlite3.connect(HISTORY_DB) as connection:
+                    connection.execute("DELETE FROM remembered_sessions WHERE token_hash=?", (token_hash,))
+                    connection.commit()
+            cookie_manager.delete("studio_session")
+            cookie_manager.delete("studio_guest_name")
+        except Exception:
+            pass
         st.session_state["current_user"] = None
         st.session_state["history_selected_id"] = None
         st.rerun()
     st.divider()
     st.markdown("## 🗂️ My Drawing History")
-    st.caption("Only your own saved drawings appear here. Click any drawing to open its full preview, edit it, or delete it.")
-    saved_items = get_history(CURRENT_USER["id"])
+    if IS_GUEST:
+        st.info("Guest drawings are not saved. Create an account or log in to keep a personal drawing history.")
+        saved_items = []
+    else:
+        st.caption("Only your own saved drawings appear here. Click any drawing to open its full preview, edit it, or delete it.")
+        saved_items = get_history(CURRENT_USER["id"])
     if not saved_items:
         st.info("Nothing saved yet. Use Save Drawing or Analyze Drawing on a canvas to start your personal gallery.")
     else:
@@ -807,6 +932,11 @@ if selected_id:
 # =========================================================
 import html
 
+if CREATIVE_UNIVERSE_URL:
+    st.link_button("← Back to Creative Universe", CREATIVE_UNIVERSE_URL, use_container_width=False)
+else:
+    st.caption("Tip: use your browser's Back button to return to Creative Universe, or set CREATIVE_UNIVERSE_URL in app settings to show a direct return button.")
+
 mode = st.session_state.get("active_mode", "🏠 Home")
 if mode != "🏠 Home":
     nav_col, _ = st.columns([1, 5])
@@ -816,7 +946,7 @@ if mode != "🏠 Home":
             st.rerun()
 
 if mode == "🏠 Home":
-    saved_items = get_history(CURRENT_USER["id"])
+    saved_items = [] if IS_GUEST else get_history(CURRENT_USER["id"])
     total_drawings = len(saved_items)
     challenge_count = sum(1 for item in saved_items if "challenge" in (item.get("mode", "").lower()))
     upload_count = sum(1 for item in saved_items if "upload" in (item.get("mode", "").lower()))
@@ -827,7 +957,7 @@ if mode == "🏠 Home":
           <div class="studio-hero-copy">
             <div class="studio-eyebrow"><span class="live-dot"></span> YOUR PERSONAL CREATIVE SPACE</div>
             <h1>Make room for<br><span>your imagination.</span></h1>
-            <p>Welcome back, <strong>{username_safe}</strong>. Start with a tiny idea, turn it into artwork, and let AI help you explore what comes next.</p>
+            <p>Welcome, <strong>{username_safe}</strong>. Start with a tiny idea, turn it into artwork, and let AI help you explore what comes next.</p>
             <div class="hero-tags"><span>✦ Create freely</span><span>✦ Try a challenge</span><span>✦ Keep your progress</span></div>
           </div>
           <div class="studio-hero-art" aria-hidden="true">
@@ -839,6 +969,8 @@ if mode == "🏠 Home":
         </section>''',
         unsafe_allow_html=True,
     )
+    if IS_GUEST:
+        st.warning("You are browsing as a guest. Drawing history will not be saved, and it will not be available if you return later. Create an account or log in to keep your artwork and feedback.")
 
     st.markdown(r'''<style>
     .studio-hero{position:relative;overflow:hidden;display:grid;grid-template-columns:1.18fr .82fr;gap:18px;align-items:center;min-height:300px;padding:32px 34px;margin:0 0 26px;border-radius:26px;border:1px solid rgba(184,163,255,.28);background:radial-gradient(circle at 80% 45%,rgba(113,74,224,.30),transparent 35%),linear-gradient(120deg,rgba(39,30,79,.98),rgba(19,35,68,.97) 68%,rgba(20,43,73,.95));box-shadow:0 22px 55px rgba(3,5,20,.22)}
@@ -1055,7 +1187,10 @@ elif mode == "🖼️ Upload & AI Analysis":
                     analysis=result,
                 )
                 st.session_state["latest_history_id"] = record_id
-                st.success("Analysis complete! Your drawing and feedback were saved in Drawing History.")
+                if IS_GUEST:
+                    st.info("Analysis complete. Guest mode does not save history; download your drawing to keep a copy.")
+                else:
+                    st.success("Analysis complete! Your drawing and feedback were saved in Drawing History.")
             except Exception as error:
                 st.error(f"Analysis failed: {error}")
 
