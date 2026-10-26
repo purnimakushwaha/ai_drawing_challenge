@@ -355,59 +355,73 @@ def start_guest(name):
 
 
 def render_auth_screen():
-    """Welcoming sign-in screen with a polished creative-studio hero."""
+    """Clean, balanced authentication screen with clear account and guest paths."""
     st.markdown("""
     <style>
-    .auth-visual{position:relative;overflow:hidden;min-height:490px;padding:32px 27px;border-radius:26px;border:1px solid rgba(190,170,255,.28);background:radial-gradient(circle at 70% 26%,rgba(129,88,238,.38),transparent 32%),radial-gradient(circle at 20% 90%,rgba(51,140,218,.22),transparent 36%),linear-gradient(145deg,#211747,#142a4c 70%,#101b36);box-shadow:0 24px 65px rgba(0,0,0,.22)}
-    .auth-pill{display:inline-block;padding:7px 11px;border-radius:999px;border:1px solid rgba(206,190,255,.24);background:rgba(255,255,255,.06);color:#ded5ff;font-size:.73rem;letter-spacing:.5px}
-    .auth-visual h1{font-size:clamp(2rem,3.3vw,3.1rem);line-height:1.04;letter-spacing:-1.4px;margin:22px 0 14px;color:#fff}
-    .auth-visual h1 span{background:linear-gradient(90deg,#e1caff,#8dd4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
-    .auth-visual p{color:#d4def7;font-size:.98rem;line-height:1.7}
-    .auth-art{height:165px;position:relative;margin:22px 0 17px;display:flex;align-items:center;justify-content:center}
-    .auth-orbit{position:absolute;width:220px;height:130px;border:1px solid rgba(203,190,255,.35);border-radius:50%;transform:rotate(-23deg)}
-    .auth-orbit.two{width:255px;height:150px;transform:rotate(28deg);border-color:rgba(126,201,255,.27)}
-    .auth-paper{position:relative;width:145px;height:138px;border-radius:20px;background:linear-gradient(150deg,#ffd5e7,#b3a2ff 56%,#6da9e9);border:1px solid rgba(255,255,255,.6);box-shadow:0 18px 45px rgba(0,0,0,.28);transform:rotate(-5deg);overflow:hidden}
-    .auth-paper:before{content:"";position:absolute;width:60px;height:60px;right:18px;top:18px;border-radius:50%;background:linear-gradient(135deg,#fff2b8,#ffb6c9);box-shadow:0 0 24px rgba(255,226,189,.55)}
-    .auth-paper:after{content:"";position:absolute;left:-12px;bottom:-4px;width:190px;height:94px;background:#394982;clip-path:polygon(0 100%,38% 5%,58% 55%,75% 22%,100% 100%)}
-    .auth-feature-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.auth-feature{padding:8px 9px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(203,190,255,.15);font-size:.75rem;color:#e6e9ff}
-    .auth-form-heading{padding:25px 24px 18px;border-radius:22px;border:1px solid rgba(181,165,255,.25);background:linear-gradient(150deg,rgba(31,32,68,.96),rgba(17,30,56,.97));margin-bottom:14px}
-    .auth-form-kicker{font-size:.7rem;font-weight:800;letter-spacing:1.6px;color:#c7b4ff;text-transform:uppercase}.auth-form-heading h2{margin:10px 0 6px;font-size:1.65rem;color:#fff}.auth-form-heading p{color:#cbd5f0;line-height:1.55;margin-bottom:0}
-    .auth-privacy-note{display:flex;gap:13px;align-items:flex-start;padding:16px 17px;margin:0 0 15px;border-radius:17px;background:linear-gradient(115deg,rgba(40,91,104,.34),rgba(53,61,112,.48));border:1px solid rgba(137,226,216,.48);box-shadow:0 10px 26px rgba(0,0,0,.12)}
-    .auth-privacy-icon{flex:0 0 38px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(120,222,205,.14);font-size:1.2rem}
-    .auth-privacy-note strong{display:block;color:#e6fff8;font-size:.98rem;margin:0 0 5px}.auth-privacy-note p{margin:0;color:#d6e9f1;font-size:.83rem;line-height:1.55}
-    @media(max-width:800px){.auth-visual{min-height:auto;padding:24px 20px}.auth-art{height:125px;margin:10px 0}.auth-form-heading{padding:20px}.auth-privacy-note{padding:13px}}
+    .auth-shell{max-width:920px;margin:0 auto 20px auto}
+    .auth-hero{position:relative;overflow:hidden;text-align:center;padding:32px 28px 29px;border-radius:25px;border:1px solid rgba(190,170,255,.25);background:radial-gradient(circle at 15% 0%,rgba(133,91,235,.28),transparent 35%),radial-gradient(circle at 90% 100%,rgba(55,145,221,.22),transparent 35%),linear-gradient(135deg,#21183f,#142743 70%,#111a31);box-shadow:0 18px 48px rgba(0,0,0,.18);margin-bottom:22px}
+    .auth-pill{display:inline-block;padding:7px 12px;border-radius:999px;border:1px solid rgba(206,190,255,.25);background:rgba(255,255,255,.06);color:#e2d8ff;font-size:.73rem;letter-spacing:1px;font-weight:700}
+    .auth-hero h1{font-size:clamp(2rem,4vw,3rem);line-height:1.12;letter-spacing:-1px;margin:15px 0 10px;color:#fff}
+    .auth-hero h1 span{background:linear-gradient(90deg,#e1caff,#8dd4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .auth-hero p{max-width:620px;margin:0 auto;color:#d5def5;font-size:.97rem;line-height:1.65}
+    .auth-benefits{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:19px}
+    .auth-benefit{padding:8px 11px;border-radius:12px;background:rgba(255,255,255,.055);border:1px solid rgba(203,190,255,.15);font-size:.79rem;color:#e8eaff}
+    .auth-card{max-width:590px;margin:0 auto;padding:25px 28px 23px;border-radius:22px;border:1px solid rgba(181,165,255,.24);background:linear-gradient(150deg,rgba(31,32,68,.96),rgba(17,30,56,.97));box-shadow:0 16px 40px rgba(0,0,0,.16)}
+    .auth-card-heading{text-align:center;margin-bottom:20px}
+    .auth-card-kicker{font-size:.69rem;font-weight:800;letter-spacing:1.7px;color:#c7b4ff;text-transform:uppercase}
+    .auth-card-heading h2{margin:8px 0 7px;font-size:1.65rem;color:#fff}
+    .auth-card-heading p{margin:0;color:#cbd5f0;line-height:1.55;font-size:.9rem}
+    .auth-privacy-note{padding:12px 14px;margin:0 0 17px;border-radius:13px;background:rgba(42,91,104,.25);border:1px solid rgba(137,226,216,.3);color:#d6e9f1;font-size:.82rem;line-height:1.5}
+    .auth-guest-card{max-width:590px;margin:17px auto 0;padding:19px 22px 20px;border-radius:19px;border:1px solid rgba(115,168,235,.28);background:linear-gradient(130deg,rgba(27,49,82,.75),rgba(30,31,66,.8))}
+    .auth-guest-card h3{margin:0 0 6px;color:#fff;font-size:1.12rem}
+    .auth-guest-card p{margin:0 0 12px;color:#cbd7ee;font-size:.84rem;line-height:1.55}
+    div[data-testid="stForm"]{border:1px solid rgba(181,165,255,.22);padding:18px 20px 16px;border-radius:0 0 18px 18px;background:rgba(17,25,48,.72);margin-top:-15px}
+    div.stButton>button,div[data-testid="stFormSubmitButton"] button{border-radius:11px;min-height:44px;font-weight:650}
+    [data-testid="stTextInput"] input{border-radius:10px!important}
+    @media(max-width:640px){.auth-hero{padding:25px 17px;border-radius:19px}.auth-card{padding:21px 17px;border-radius:18px}.auth-guest-card{padding:17px}.auth-benefit{font-size:.74rem}}
     </style>
     """, unsafe_allow_html=True)
-    left, right = st.columns([1.02, .98], gap="large")
-    with left:
-        st.markdown("""
-        <section class="auth-visual">
-          <span class="auth-pill">✦ YOUR PERSONAL CREATIVE SPACE</span>
-          <h1>Every idea deserves a <span>canvas.</span></h1>
-          <p>Sketch a little, explore a new challenge, and discover what your imagination can do—with an AI art coach along the way.</p>
-          <div class="auth-art"><div class="auth-orbit"></div><div class="auth-orbit two"></div><div class="auth-paper"></div></div>
-          <div class="auth-feature-row"><span class="auth-feature">🎯 Drawing quests</span><span class="auth-feature">🖌️ Free canvas</span><span class="auth-feature">✨ AI feedback</span><span class="auth-feature">🗂️ Saved gallery</span></div>
-        </section>
-        """, unsafe_allow_html=True)
-    with right:
-        privacy_note = """
-        <div class="auth-privacy-note">
-          <div class="auth-privacy-icon">🔒</div>
-          <div><strong>Your privacy comes first</strong>
-          <p>You only need a username and password. We do not ask for your real name, phone number or email address. Please avoid using sensitive personal details in your username.</p></div>
+
+    st.markdown("""
+    <div class="auth-shell">
+      <section class="auth-hero">
+        <span class="auth-pill">✦ YOUR PERSONAL CREATIVE SPACE</span>
+        <h1>Every idea deserves a <span>canvas.</span></h1>
+        <p>Draw freely, take on creative challenges, and get helpful feedback from your AI art coach.</p>
+        <div class="auth-benefits">
+          <span class="auth-benefit">🎯 Drawing quests</span>
+          <span class="auth-benefit">🖌️ Free canvas</span>
+          <span class="auth-benefit">✨ AI feedback</span>
+          <span class="auth-benefit">🗂️ Personal gallery</span>
         </div>
-        """
-        if "auth_mode" not in st.session_state:
-            st.session_state["auth_mode"] = "create"
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if "auth_mode" not in st.session_state:
+        st.session_state["auth_mode"] = "create"
+
+    # A centered, single-column form avoids mismatched card heights and uneven spacing.
+    _, center, _ = st.columns([1, 2.15, 1])
+    with center:
+        mode_left, mode_right = st.columns(2, gap="small")
+        with mode_left:
+            if st.button("✨ Create account", use_container_width=True, key="auth_create_tab"):
+                st.session_state["auth_mode"] = "create"
+                st.rerun()
+        with mode_right:
+            if st.button("🔐 Log in", use_container_width=True, key="auth_login_tab"):
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
+
         if st.session_state["auth_mode"] == "create":
-            st.markdown("<div class='auth-form-heading'><div class='auth-form-kicker'>WELCOME TO THE STUDIO</div><h2>✨ Create your account</h2><p>Set up a private workspace for your drawings. It only takes a moment.</p></div>", unsafe_allow_html=True)
-            st.markdown(privacy_note, unsafe_allow_html=True)
-            st.caption("Username: 3–32 characters using letters, numbers, dots, underscores or hyphens. Password: at least 8 characters.")
+            st.markdown("<div class='auth-card-heading'><div class='auth-card-kicker'>WELCOME TO THE STUDIO</div><h2>✨ Create your account</h2><p>Save your artwork and return to your personal gallery anytime.</p></div><div class='auth-privacy-note'>🔒 Only a username and password are needed. Avoid using sensitive personal details in your username.</div>", unsafe_allow_html=True)
+            st.caption("Username: 3–32 characters. Password: at least 8 characters.")
             with st.form("signup_form"):
                 new_username = st.text_input("Choose a username", key="signup_username", placeholder="e.g. creative_artist")
                 new_password = st.text_input("Create a password", type="password", key="signup_password", placeholder="At least 8 characters")
                 confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm_password", placeholder="Enter the same password again")
-                submitted = st.form_submit_button("✨ Create My Workspace", type="primary", use_container_width=True)
+                submitted = st.form_submit_button("Create My Workspace →", type="primary", use_container_width=True)
             if submitted:
                 if new_password != confirm_password:
                     st.error("The passwords do not match.")
@@ -419,13 +433,8 @@ def render_auth_screen():
                         st.rerun()
                     else:
                         st.error(result)
-            st.markdown("<div style='text-align:center;margin-top:18px;color:#cbd2ed;'>Already have an account?</div>", unsafe_allow_html=True)
-            if st.button("🔐 Log in instead", use_container_width=True, key="switch_to_login"):
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
         else:
-            st.markdown("<div class='auth-form-heading'><div class='auth-form-kicker'>YOUR ART IS WAITING</div><h2>👋 Welcome back</h2><p>Log in to return to your saved artwork and creative projects.</p></div>", unsafe_allow_html=True)
-            st.markdown(privacy_note, unsafe_allow_html=True)
+            st.markdown("<div class='auth-card-heading'><div class='auth-card-kicker'>YOUR ART IS WAITING</div><h2>👋 Welcome back</h2><p>Log in to continue creating and open your saved drawings.</p></div><div class='auth-privacy-note'>🔒 Your password is stored as a salted hash, not as readable plain text.</div>", unsafe_allow_html=True)
             with st.form("login_form"):
                 username = st.text_input("Username", key="login_username", placeholder="Your username")
                 password = st.text_input("Password", type="password", key="login_password", placeholder="Your password")
@@ -437,15 +446,13 @@ def render_auth_screen():
                     st.rerun()
                 else:
                     st.error("Username or password is incorrect.")
-            st.markdown("<div style='text-align:center;margin-top:18px;color:#cbd2ed;'>New to AI Drawing Studio?</div>", unsafe_allow_html=True)
-            if st.button("✨ Create an account", use_container_width=True, key="switch_to_create"):
-                st.session_state["auth_mode"] = "create"
-                st.rerun()
-            st.caption("For your security, passwords are stored as salted hashes—not as readable plain text.")
 
-        st.markdown("---")
-        st.markdown("### 🎨 Just want to try the studio?")
-        st.info("Guest mode does not save drawing history. Your saved gallery will not be available later. Create an account or log in if you want your drawings and AI feedback saved privately.")
+        st.markdown("""
+        <div class="auth-guest-card">
+          <h3>🎨 Try the studio as a guest</h3>
+          <p>You can still draw and use AI tools. Guest drawings are not saved to your account, and your history will not be available when you return.</p>
+        </div>
+        """, unsafe_allow_html=True)
         with st.form("guest_form"):
             guest_name = st.text_input("What should we call you?", max_chars=32, placeholder="Enter a display name")
             guest_submit = st.form_submit_button("🚀 Enter as Guest", use_container_width=True)
@@ -454,7 +461,6 @@ def render_auth_screen():
                 st.rerun()
             else:
                 st.error("Please enter a name with at least 2 characters.")
-
 
 def save_history(user_id, title, mode, challenge, image_bytes, analysis=""):
     # Guests can draw and analyze, but never write to the persistent history table.
