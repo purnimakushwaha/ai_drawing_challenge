@@ -415,47 +415,49 @@ def start_guest(name):
 
 
 def render_auth_screen():
-    """Clean, balanced authentication screen with clear account and guest paths."""
+    """Polished, responsive welcome screen with account and guest paths."""
     st.markdown("""
     <style>
-    .auth-shell{max-width:920px;margin:0 auto 20px auto}
-    .auth-hero{position:relative;overflow:hidden;text-align:center;padding:32px 28px 29px;border-radius:25px;border:1px solid rgba(190,170,255,.25);background:radial-gradient(circle at 15% 0%,rgba(133,91,235,.28),transparent 35%),radial-gradient(circle at 90% 100%,rgba(55,145,221,.22),transparent 35%),linear-gradient(135deg,#21183f,#142743 70%,#111a31);box-shadow:0 18px 48px rgba(0,0,0,.18);margin-bottom:22px}
-    .auth-pill{display:inline-block;padding:7px 12px;border-radius:999px;border:1px solid rgba(206,190,255,.25);background:rgba(255,255,255,.06);color:#e2d8ff;font-size:.73rem;letter-spacing:1px;font-weight:700}
-    .auth-hero h1{font-size:clamp(2rem,4vw,3rem);line-height:1.12;letter-spacing:-1px;margin:15px 0 10px;color:#fff}
-    .auth-hero h1 span{background:linear-gradient(90deg,#e1caff,#8dd4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
-    .auth-hero p{max-width:620px;margin:0 auto;color:#d5def5;font-size:.97rem;line-height:1.65}
-    .auth-benefits{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:19px}
-    .auth-benefit{padding:8px 11px;border-radius:12px;background:rgba(255,255,255,.055);border:1px solid rgba(203,190,255,.15);font-size:.79rem;color:#e8eaff}
-    .auth-card{max-width:590px;margin:0 auto;padding:25px 28px 23px;border-radius:22px;border:1px solid rgba(181,165,255,.24);background:linear-gradient(150deg,rgba(31,32,68,.96),rgba(17,30,56,.97));box-shadow:0 16px 40px rgba(0,0,0,.16)}
-    .auth-card-heading{text-align:center;margin-bottom:20px}
-    .auth-card-kicker{font-size:.69rem;font-weight:800;letter-spacing:1.7px;color:#c7b4ff;text-transform:uppercase}
-    .auth-card-heading h2{margin:8px 0 7px;font-size:1.65rem;color:#fff}
-    .auth-card-heading p{margin:0;color:#cbd5f0;line-height:1.55;font-size:.9rem}
-    .auth-privacy-note{padding:12px 14px;margin:0 0 17px;border-radius:13px;background:rgba(42,91,104,.25);border:1px solid rgba(137,226,216,.3);color:#d6e9f1;font-size:.82rem;line-height:1.5}
-    .auth-guest-card{max-width:590px;margin:17px auto 0;padding:19px 22px 20px;border-radius:19px;border:1px solid rgba(115,168,235,.28);background:linear-gradient(130deg,rgba(27,49,82,.75),rgba(30,31,66,.8))}
-    .auth-guest-card h3{margin:0 0 6px;color:#fff;font-size:1.12rem}
-    .auth-guest-card p{margin:0 0 12px;color:#cbd7ee;font-size:.84rem;line-height:1.55}
-    div[data-testid="stForm"]{border:1px solid rgba(181,165,255,.22);padding:18px 20px 16px;border-radius:0 0 18px 18px;background:rgba(17,25,48,.72);margin-top:-15px}
-    div.stButton>button,div[data-testid="stFormSubmitButton"] button{border-radius:11px;min-height:44px;font-weight:650}
-    [data-testid="stTextInput"] input{border-radius:10px!important}
-    @media(max-width:640px){.auth-hero{padding:25px 17px;border-radius:19px}.auth-card{padding:21px 17px;border-radius:18px}.auth-guest-card{padding:17px}.auth-benefit{font-size:.74rem}}
+    /* Authentication-only visual system */
+    .auth-wrap{max-width:1120px;margin:8px auto 24px}
+    .auth-brand{padding:30px 28px 26px;border:1px solid rgba(164,151,255,.22);border-radius:26px;
+      background:radial-gradient(ellipse at 8% 0%,rgba(138,92,246,.24),transparent 42%),
+      radial-gradient(ellipse at 100% 95%,rgba(57,164,211,.17),transparent 38%),
+      linear-gradient(145deg,rgba(26,29,62,.98),rgba(15,25,48,.98));
+      box-shadow:0 20px 55px rgba(0,0,0,.22);min-height:100%;}
+    .auth-logo{display:inline-flex;align-items:center;gap:9px;padding:8px 12px;border-radius:13px;
+      background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);color:#e6e1ff;
+      font-weight:750;font-size:.82rem;letter-spacing:.25px}
+    .auth-brand h1{font-size:clamp(2.05rem,4vw,3.15rem);line-height:1.07;letter-spacing:-1.6px;
+      margin:25px 0 14px;color:#fff}
+    .auth-brand h1 span{background:linear-gradient(90deg,#d9c5ff,#9bdcff);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .auth-brand p{font-size:.98rem;line-height:1.75;color:#cbd5ee;margin:0;max-width:470px}
+    .auth-feature-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:25px}
+    .auth-feature{padding:12px 13px;border-radius:14px;background:rgba(255,255,255,.045);
+      border:1px solid rgba(205,199,255,.12);color:#e8eaff;font-size:.83rem;line-height:1.45}
+    .auth-feature b{display:block;color:#fff;font-size:.87rem;margin-bottom:3px}
+    .auth-side-title{font-size:.7rem;font-weight:800;letter-spacing:1.7px;color:#bfb0ff;text-transform:uppercase;margin-bottom:7px}
+    .auth-panel-title{font-size:1.75rem;letter-spacing:-.6px;font-weight:780;color:#fff;line-height:1.2;margin:0 0 7px}
+    .auth-panel-subtitle{font-size:.9rem;color:#bfc9e4;line-height:1.6;margin-bottom:19px}
+    .auth-info{padding:11px 13px;border-radius:12px;background:rgba(67,83,132,.20);border:1px solid rgba(163,174,237,.17);
+      color:#cdd7f1;font-size:.79rem;line-height:1.55;margin:14px 0 15px}
+    .auth-guest{padding:17px 17px 14px;border:1px solid rgba(139,169,231,.22);border-radius:17px;
+      background:rgba(31,49,82,.40);margin-top:18px}
+    .auth-guest h3{font-size:1rem;color:#fff;margin:0 0 5px}
+    .auth-guest p{font-size:.81rem;color:#bdc9e2;line-height:1.55;margin:0 0 12px}
+    .auth-divider{display:flex;align-items:center;gap:10px;color:#8f9bbd;font-size:.72rem;letter-spacing:1.2px;margin:16px 0}
+    .auth-divider:before,.auth-divider:after{content:'';height:1px;background:rgba(180,190,230,.18);flex:1}
+    div[data-testid="stTextInput"] label{font-size:.84rem!important;font-weight:650!important;color:#e4e8f8!important}
+    div[data-testid="stTextInput"] input{min-height:45px!important;border-radius:11px!important;background:rgba(8,14,31,.55)!important;border:1px solid rgba(163,174,224,.25)!important}
+    div[data-testid="stTextInput"] input:focus{border-color:#9b85ff!important;box-shadow:0 0 0 2px rgba(155,133,255,.16)!important}
+    div[data-testid="stForm"]{padding:0!important;border:0!important;background:transparent!important;margin:0!important}
+    div[data-testid="stFormSubmitButton"] button,div.stButton>button{min-height:44px;border-radius:11px;font-weight:700;transition:all .16s ease}
+    div[data-testid="stFormSubmitButton"] button[kind="primary"],div.stButton>button[kind="primary"]{border:0;background:linear-gradient(100deg,#8b6cf0,#5b91e9);color:white;box-shadow:0 7px 18px rgba(93,101,218,.19)}
+    div[data-testid="stFormSubmitButton"] button:hover,div.stButton>button:hover{border-color:#b9a9ff;transform:translateY(-1px)}
+    [data-testid="stAppViewContainer"] .main .block-container{padding-top:2rem;padding-bottom:2rem;max-width:1240px}
+    @media(max-width:760px){.auth-brand{padding:23px 20px;border-radius:21px;margin-bottom:12px}.auth-brand h1{margin-top:19px}.auth-feature-list{gap:8px}.auth-feature{padding:10px;font-size:.78rem}.auth-panel-title{font-size:1.55rem}}
+    @media(prefers-reduced-motion:reduce){*{transition:none!important}}
     </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="auth-shell">
-      <section class="auth-hero">
-        <span class="auth-pill">✦ YOUR PERSONAL CREATIVE SPACE</span>
-        <h1>Every idea deserves a <span>canvas.</span></h1>
-        <p>Draw freely, take on creative challenges, and get helpful feedback from your AI art coach.</p>
-        <div class="auth-benefits">
-          <span class="auth-benefit">🎯 Drawing quests</span>
-          <span class="auth-benefit">🖌️ Free canvas</span>
-          <span class="auth-benefit">✨ AI feedback</span>
-          <span class="auth-benefit">🗂️ Personal gallery</span>
-        </div>
-      </section>
-    </div>
     """, unsafe_allow_html=True)
 
     if st.session_state.pop("auth_return_to_login", False):
@@ -463,46 +465,55 @@ def render_auth_screen():
     if "auth_mode" not in st.session_state:
         st.session_state["auth_mode"] = "create"
 
-    # Guest access is the first clear action; account access follows below.
-    _, guest_center, _ = st.columns([1, 2.15, 1])
-    with guest_center:
+    left, right = st.columns([1.02, 0.98], gap="large", vertical_alignment="top")
+    with left:
         st.markdown("""
-        <div class="auth-guest-card" style="margin:0 auto 12px;">
-          <h3>🎨 Continue as a Guest</h3>
-          <p>Jump straight into the studio without creating an account. Guest drawings are not saved to an account or personal history.</p>
+        <section class="auth-brand">
+          <div class="auth-logo"><span style="font-size:1.25rem">✦</span> AI DRAWING STUDIO</div>
+          <h1>Your imagination.<br/>Your <span>universe.</span></h1>
+          <p>A creative space to sketch ideas, take on playful drawing challenges, and discover what your artwork can become.</p>
+          <div class="auth-feature-list">
+            <div class="auth-feature"><b>🎯 Creative quests</b>Fresh drawing prompts to spark ideas.</div>
+            <div class="auth-feature"><b>🖌️ Open canvas</b>Draw freely, in your own style.</div>
+            <div class="auth-feature"><b>✨ AI art coach</b>Get thoughtful, helpful feedback.</div>
+            <div class="auth-feature"><b>🗂️ Your gallery</b>Keep your creations together.</div>
+          </div>
+        </section>
+        <div class="auth-guest">
+          <h3>Just want to explore?</h3>
+          <p>Enter as a guest and start creating without setting up an account. Guest artwork is not saved to a personal account history.</p>
         </div>
         """, unsafe_allow_html=True)
         with st.form("guest_form"):
-            guest_name = st.text_input("What should we call you?", max_chars=32, placeholder="Enter a display name")
-            guest_submit = st.form_submit_button("🚀 Enter as Guest", use_container_width=True, type="primary")
+            guest_name = st.text_input("Your display name", max_chars=32, placeholder="What should we call you?")
+            guest_submit = st.form_submit_button("Explore as Guest  →", use_container_width=True)
         if guest_submit:
             if start_guest(guest_name):
                 st.rerun()
             else:
                 st.error("Please enter a name with at least 2 characters.")
-        st.markdown("<div style='text-align:center;color:#bfc8e5;font-size:.82rem;margin:18px 0 12px;'>OR CONTINUE WITH AN ACCOUNT</div>", unsafe_allow_html=True)
 
-    # A centered, single-column form avoids mismatched card heights and uneven spacing.
-    _, center, _ = st.columns([1, 2.15, 1])
-    with center:
-        mode_left, mode_right = st.columns(2, gap="small")
-        with mode_left:
-            if st.button("✨ Create account", use_container_width=True, key="auth_create_tab"):
+    with right:
+        st.markdown('<div class="auth-side-title">YOUR CREATIVE SPACE</div>', unsafe_allow_html=True)
+        st.markdown('<div class="auth-panel-title">Make room for ideas.</div><div class="auth-panel-subtitle">Create an account to keep your drawings and return to your studio anytime.</div>', unsafe_allow_html=True)
+        tab_create, tab_login = st.columns(2, gap="small")
+        with tab_create:
+            if st.button("Create account", use_container_width=True, key="auth_create_tab", type="primary" if st.session_state["auth_mode"] == "create" else "secondary"):
                 st.session_state["auth_mode"] = "create"
                 st.rerun()
-        with mode_right:
-            if st.button("🔐 Log in", use_container_width=True, key="auth_login_tab"):
+        with tab_login:
+            if st.button("Log in", use_container_width=True, key="auth_login_tab", type="primary" if st.session_state["auth_mode"] == "login" else "secondary"):
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
 
         if st.session_state["auth_mode"] == "create":
-            st.markdown("<div class='auth-card-heading'><div class='auth-card-kicker'>WELCOME TO THE STUDIO</div><h2>✨ Create your account</h2><p>Save your artwork and return to your personal gallery anytime.</p></div><div class='auth-privacy-note'>🔒 Only a username and password are needed. Avoid using sensitive personal details in your username.</div>", unsafe_allow_html=True)
-            st.caption("Username: 3–32 characters. Password: at least 8 characters.")
+            st.markdown('<div class="auth-info">🔒 Use a username and password. Avoid including private personal information in your username.</div>', unsafe_allow_html=True)
+            st.caption("Username: 3–32 characters · Password: at least 8 characters")
             with st.form("signup_form"):
                 new_username = st.text_input("Choose a username", key="signup_username", placeholder="e.g. creative_artist")
                 new_password = st.text_input("Create a password", type="password", key="signup_password", placeholder="At least 8 characters")
-                confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm_password", placeholder="Enter the same password again")
-                submitted = st.form_submit_button("Create My Workspace →", type="primary", use_container_width=True)
+                confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm_password", placeholder="Enter it again")
+                submitted = st.form_submit_button("Create my studio  →", type="primary", use_container_width=True)
             if submitted:
                 if new_password != confirm_password:
                     st.error("The passwords do not match.")
@@ -510,16 +521,16 @@ def render_auth_screen():
                     ok, result = create_account(new_username, new_password)
                     if ok:
                         remember_account({"id": result, "username": new_username.strip(), "is_guest": False})
-                        st.success("Your workspace is ready! Welcome to AI Drawing Studio.")
+                        st.success("Your studio is ready! Welcome to AI Drawing Studio.")
                         st.rerun()
                     else:
                         st.error(result)
         else:
-            st.markdown("<div class='auth-card-heading'><div class='auth-card-kicker'>YOUR ART IS WAITING</div><h2>👋 Welcome back</h2><p>Log in to continue creating and open your saved drawings.</p></div><div class='auth-privacy-note'>🔒 Your password is stored as a salted hash, not as readable plain text.</div>", unsafe_allow_html=True)
+            st.markdown('<div class="auth-info">🔐 Log in to reopen your personal gallery and continue where you left off.</div>', unsafe_allow_html=True)
             with st.form("login_form"):
                 username = st.text_input("Username", key="login_username", placeholder="Your username")
                 password = st.text_input("Password", type="password", key="login_password", placeholder="Your password")
-                submitted = st.form_submit_button("Log in to My Studio →", type="primary", use_container_width=True)
+                submitted = st.form_submit_button("Enter my studio  →", type="primary", use_container_width=True)
             if submitted:
                 user = authenticate_user(username, password)
                 if user:
@@ -527,6 +538,8 @@ def render_auth_screen():
                     st.rerun()
                 else:
                     st.error("Username or password is incorrect.")
+
+    st.markdown('<div style="text-align:center;color:#8490b0;font-size:.75rem;margin:26px 0 0">MADE FOR CREATIVITY · TAKE YOUR TIME · MAKE SOMETHING YOURS</div>', unsafe_allow_html=True)
 
 
 def save_history(user_id, title, mode, challenge, image_bytes, analysis=""):
