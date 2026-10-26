@@ -2,3 +2,4 @@ streamlit
 ollama
 pillow
 streamlit-drawable-canvas-fix
+extra-streamlit-components
